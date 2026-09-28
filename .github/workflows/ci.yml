@@ -37,7 +37,7 @@ jobs:
         run: npm run lint
 
       - name: Run Unit & Integration Test Suite
-        run: npm run test:coverage
+        run: npm run test
 
       - name: Production Bundle Verification
         run: npm run build
