@@ -1,0 +1,19 @@
+name: Daily Automated Security Audit
+
+on:
+  schedule:
+    # Runs at 04:00 UTC every single day
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  audit-dependencies:
+    name: Dependency Vulnerability Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run npm audit
+        run: npm audit --audit-level=high

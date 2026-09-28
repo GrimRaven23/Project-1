@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: telcoqualify-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://telco_admin:Secr3tPostgresPass!@postgres:5432/telcoqualify?schema=public
+      - DATABASE_TYPE=postgres
+      - JWT_SECRET=prod-grade-32-character-enterprise-secret-key!
+      - STORAGE_PROVIDER=local
+      - STORAGE_LOCAL_PATH=/app/storage/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - telco_uploads:/app/storage/uploads
+    networks:
+      - telco_net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: telcoqualify-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: telco_admin
+      POSTGRES_PASSWORD: Secr3tPostgresPass!
+      POSTGRES_DB: telcoqualify
+    ports:
+      - "5432:5432"
+    volumes:
+      - telco_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telco_admin -d telcoqualify"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - telco_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: telcoqualify-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - telco_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - telco_net
+
+volumes:
+  telco_db_data:
+  telco_redis_data:
+  telco_uploads:
+
+networks:
+  telco_net:
+    driver: bridge

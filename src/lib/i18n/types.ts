@@ -1,0 +1,123 @@
+export type Language = "fr" | "en";
+
+export interface TranslationDictionary {
+  common: {
+    appName: string;
+    tagline: string;
+    loading: string;
+    save: string;
+    cancel: string;
+    confirm: string;
+    back: string;
+    next: string;
+    submit: string;
+    edit: string;
+    delete: string;
+    search: string;
+    filter: string;
+    actions: string;
+    status: string;
+    priority: string;
+    domain: string;
+    viewDetails: string;
+    version: string;
+    capex: string;
+    opex: string;
+    total: string;
+    monthly: string;
+    oneTime: string;
+    currency: string;
+    exportPdf: string;
+    exportCsv: string;
+    allRightsReserved: string;
+  };
+  navigation: {
+    dashboard: string;
+    cases: string;
+    newCase: string;
+    customers: string;
+    expertQueue: string;
+    catalog: string;
+    auditLog: string;
+    admin: string;
+    roleSwitcher: string;
+    languageSwitcher: string;
+  };
+  dashboard: {
+    activeCases: string;
+    awaitingExperts: string;
+    qualifiedSolutions: string;
+    approvedOffers: string;
+    recentCases: string;
+    expertTriageSummary: string;
+    pipelineValue: string;
+    monthlyRecurring: string;
+  };
+  case: {
+    caseNumber: string;
+    title: string;
+    customer: string;
+    commercialOwner: string;
+    sites: string;
+    existingAssets: string;
+    requirements: string;
+    qualification: string;
+    expertReviews: string;
+    bom: string;
+    commercialOffer: string;
+    documents: string;
+    timeline: string;
+    runQualification: string;
+    escalateToExpert: string;
+    generateBom: string;
+    prepareOffer: string;
+    currentLifecycleState: string;
+  };
+  qualification: {
+    deterministicEngine: string;
+    eligibilityTitle: string;
+    ruleCode: string;
+    explanation: string;
+    suggestedAction: string;
+    available: string;
+    requiresExpert: string;
+    replacementRecommended: string;
+    renewalRequired: string;
+    additionalRequired: string;
+    incompatible: string;
+  };
+  expert: {
+    triageQueue: string;
+    assignedDomain: string;
+    claimTicket: string;
+    submitRecommendation: string;
+    clientSafeSummary: string;
+    internalConfidentialNotes: string;
+    technicalRisks: string;
+    suggestedBomItems: string;
+    restrictedNotice: string;
+  };
+  bom: {
+    title: string;
+    productCode: string;
+    description: string;
+    category: string;
+    quantity: string;
+    unitCapex: string;
+    monthlyOpex: string;
+    totalCapex: string;
+    totalMonthlyOpex: string;
+    source: string;
+    emptyBom: string;
+  };
+  offer: {
+    title: string;
+    executiveSummary: string;
+    technicalAssumptions: string;
+    commercialTerms: string;
+    contractDuration: string;
+    managerApproval: string;
+    approveOffer: string;
+    downloadProposal: string;
+  };
+}
