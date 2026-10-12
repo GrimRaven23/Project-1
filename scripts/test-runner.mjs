@@ -6,6 +6,9 @@
 import fs from "fs";
 import path from "path";
 import ts from "typescript";
+import { createRequire } from "module";
+
+const nodeRequire = createRequire(import.meta.url);
 
 // Compile and load TS module
 function loadTsModule(filePath) {
@@ -26,7 +29,7 @@ function loadTsModule(filePath) {
       if (fs.existsSync(fullPath + "/index.ts")) return loadTsModule(fullPath + "/index.ts");
       if (fs.existsSync(fullPath)) return loadTsModule(fullPath);
     }
-    return require(importPath);
+    return nodeRequire(importPath);
   };
 
   const fn = new Function("module", "exports", "require", result.outputText);
@@ -169,6 +172,31 @@ assert(
   maskedSecurity.expertRequests[0]?.response?.internalNotes.includes("CONFIDENTIAL SECURITY NOTE"),
   "DataMaskingService preserves confidential notes for Security Specialist"
 );
+
+// Domain 8: JWT Authentication & Session Token Integrity
+console.log("\n▶ [Test Suite 8]: JWT Authentication & Session Token Integrity");
+const jwtModule = loadTsModule(path.resolve("src/core/security/jwt.ts"));
+const { JwtService } = jwtModule;
+
+const dummyUser = {
+  id: "USR-COMM-01",
+  name: "Alexandre Martin",
+  email: "a.martin@telco-enterprise.fr",
+  role: "COMMERCIAL_AGENT",
+  department: "B2B Sales"
+};
+
+const token = JwtService.signToken(dummyUser);
+assert(typeof token === "string" && token.split(".").length === 3, "JWT token signs with standard 3-part header.payload.signature");
+
+const verified = JwtService.verifyToken(token);
+assert(verified && verified.id === dummyUser.id && verified.role === dummyUser.role, "JWT token decodes and verifies user identity and role");
+
+const invalidToken = JwtService.verifyToken("invalid.token.signature");
+assert(invalidToken === null, "Tampered or invalid JWT signature returns null");
+
+const authCookie = JwtService.createAuthCookie(token);
+assert(authCookie.includes("HttpOnly") && authCookie.includes("SameSite=Lax"), "Auth cookie includes HttpOnly and SameSite=Lax flags for defense-in-depth");
 
 console.log("\n=======================================================");
 console.log(`🎯 TOTAL RESULTS: ${passed} PASSED, ${failed} FAILED (100% Success Rate)`);

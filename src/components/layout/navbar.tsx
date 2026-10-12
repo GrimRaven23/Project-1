@@ -5,10 +5,19 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
 import { LanguageSwitcher } from "./language-switcher";
 import { RoleSwitcher } from "./role-switcher";
-import { Activity, Bell, Radio, Search } from "lucide-react";
+import { Activity, Bell, Radio, Search, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth/auth-context";
+import { useRouter } from "next/navigation";
 
 export const Navbar: React.FC = () => {
   const { t } = useI18n();
+  const { logout, currentUser } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/login");
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-6 backdrop-blur-md">
@@ -52,6 +61,13 @@ export const Navbar: React.FC = () => {
             <Bell className="w-4 h-4" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-600 rounded-full animate-ping" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-600 rounded-full" />
+          </button>
+          <button
+            onClick={handleLogout}
+            title={currentUser ? `Log out (${currentUser.name})` : "Sign In / Log Out"}
+            className="p-2 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>
