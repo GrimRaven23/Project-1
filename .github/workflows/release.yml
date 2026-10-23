@@ -17,6 +17,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # Added 2026-10-23: the CycloneDX generator shells out to `npm ls`, which
+      # reads the INSTALLED tree. Without this step the release silently
+      # published a valid-looking but EMPTY bom.json (0 components) — verified
+      # against the v1.0.0 asset, which was 774 bytes with no entries. With
+      # dependencies installed the same command yields 395 components.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install Dependencies (for SBOM generation)
+        run: npm ci
+
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -32,6 +46,23 @@ jobs:
         uses: CycloneDX/gh-node-module-generatebom@v1
         with:
           output: 'bom.json'
+
+      # Guard: an EMPTY SBOM is a valid CycloneDX document, so nothing downstream
+      # would fail. Assert the component count before publishing, so a
+      # regression (e.g. removing the npm ci step above) fails the release
+      # instead of shipping a hollow artifact.
+      - name: Verify SBOM is not empty
+        run: |
+          node -e '
+            const fs = require("fs");
+            const bom = JSON.parse(fs.readFileSync("bom.json", "utf8"));
+            const n = (bom.components || []).length;
+            console.log(`SBOM components: ${n}`);
+            if (!n) {
+              console.error("::error::SBOM contains 0 components — refusing to publish a hollow artifact.");
+              process.exit(1);
+            }
+          '
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
