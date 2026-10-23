@@ -27,10 +27,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # Must satisfy every devDependency's engines field (vitest 2.x
-          # requires >=18, next 14 supports 18/20). Kept explicit so a future
-          # engine bump fails loudly here instead of at runtime.
-          node-version: 20
+          # Node 20 reached end-of-life in April 2026; 24 is the active LTS
+          # and matches local development.
+          node-version: 24
           cache: 'npm'
 
       - name: Install Dependencies

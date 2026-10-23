@@ -1,6 +1,6 @@
 # Multi-stage production Dockerfile for TelcoQualify Enterprise
 # Base Image with minimal Alpine footprint
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
@@ -27,7 +27,7 @@ COPY . .
 RUN npm run build
 
 # Production runner stage
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
