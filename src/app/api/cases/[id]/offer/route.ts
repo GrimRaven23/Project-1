@@ -7,13 +7,14 @@ import { RbacGuard, Permission } from "@/core/security/rbac";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "offers:create");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const currentCase = DatabaseRepository.getCaseById(params.id);
+  const currentCase = DatabaseRepository.getCaseById(id);
   if (!currentCase || !ApiGuard.canAccessCase(user, currentCase)) {
     return ApiGuard.notFound("Case");
   }
@@ -92,13 +93,14 @@ export async function POST(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "offers:view");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const currentCase = DatabaseRepository.getCaseById(params.id);
+  const currentCase = DatabaseRepository.getCaseById(id);
   if (!currentCase || !ApiGuard.canAccessCase(user, currentCase)) {
     return ApiGuard.notFound("Case");
   }

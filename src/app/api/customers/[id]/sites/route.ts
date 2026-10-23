@@ -7,11 +7,12 @@ import { z } from "zod";
 /**
  * GET /api/customers/[id]/sites
  */
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "customers:view");
   if (guard instanceof NextResponse) return guard;
 
-  const customer = DatabaseRepository.getCustomerById(params.id);
+  const customer = DatabaseRepository.getCustomerById(id);
   if (!customer || !ApiGuard.canAccessCustomer(guard.user, customer)) {
     return ApiGuard.notFound("Customer");
   }
@@ -25,12 +26,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
  * Site geometry drives Wi-Fi density sizing and fibre qualification, so the
  * numeric fields are validated rather than trusted.
  */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "customers:update");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const customer = DatabaseRepository.getCustomerById(params.id);
+  const customer = DatabaseRepository.getCustomerById(id);
   if (!customer || !ApiGuard.canAccessCustomer(user, customer)) {
     return ApiGuard.notFound("Customer");
   }

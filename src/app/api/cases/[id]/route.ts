@@ -22,8 +22,9 @@ function findAccessibleCase(request: NextRequest, caseId: string) {
   return { user: guard.user, targetCase };
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const scope = findAccessibleCase(request, params.id);
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const scope = findAccessibleCase(request, id);
   if (scope.error) return scope.error;
 
   const masked = DataMaskingService.maskCase(scope.targetCase, scope.user.role);
@@ -39,8 +40,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
  * `bomItems`/`offers` (self-approving a quote), or `assignedCommercialId`
  * (reassigning the account).
  */
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
-  const scope = findAccessibleCase(request, params.id);
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const scope = findAccessibleCase(request, id);
   if (scope.error) return scope.error;
   const { user, targetCase: existingCase } = scope;
 
@@ -104,7 +106,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
           ? { lifecycleState: input.lifecycleState as CaseLifecycleState }
           : {}),
         sites,
-        id: params.id
+        id: id
       },
       user
     );
@@ -125,8 +127,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
  * DELETE /api/cases/[id] — cancel a case (soft delete; the record and its audit
  * trail are preserved).
  */
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  const scope = findAccessibleCase(request, params.id);
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const scope = findAccessibleCase(request, id);
   if (scope.error) return scope.error;
   const { user, targetCase: existingCase } = scope;
 

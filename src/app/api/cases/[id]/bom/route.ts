@@ -13,12 +13,13 @@ import { BomItem, CaseLifecycleState } from "@/core/domain/types";
  * SECURITY: requires `bom:edit` plus case access. Totals are computed
  * server-side from the engine's output; the client cannot submit its own BOM.
  */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "bom:edit");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const currentCase = DatabaseRepository.getCaseById(params.id);
+  const currentCase = DatabaseRepository.getCaseById(id);
   if (!currentCase || !ApiGuard.canAccessCase(user, currentCase)) {
     return ApiGuard.notFound("Case");
   }

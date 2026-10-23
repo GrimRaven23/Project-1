@@ -10,18 +10,19 @@ import { AuditService } from "@/core/audit/audit-logger";
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; contactId: string } }
+  { params }: { params: Promise<{ id: string; contactId: string }> }
 ) {
+  const { id, contactId } = await params;
   const guard = ApiGuard.verifyAccess(request, "customers:update");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const customer = DatabaseRepository.getCustomerById(params.id);
+  const customer = DatabaseRepository.getCustomerById(id);
   if (!customer || !ApiGuard.canAccessCustomer(user, customer)) {
     return ApiGuard.notFound("Customer");
   }
 
-  const contact = DatabaseRepository.getContactById(params.contactId);
+  const contact = DatabaseRepository.getContactById(contactId);
   if (!contact || contact.customerId !== customer.id) {
     return ApiGuard.notFound("Contact");
   }

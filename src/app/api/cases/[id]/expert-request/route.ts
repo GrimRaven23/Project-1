@@ -9,13 +9,14 @@ import { DataMaskingService } from "@/core/security/data-masking";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "expert_requests:create");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const currentCase = DatabaseRepository.getCaseById(params.id);
+  const currentCase = DatabaseRepository.getCaseById(id);
   if (!currentCase || !ApiGuard.canAccessCase(user, currentCase)) {
     return ApiGuard.notFound("Case");
   }
@@ -143,13 +144,14 @@ const VALID_PRIORITIES: PriorityLevel[] = ["LOW", "NORMAL", "HIGH", "URGENT"];
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "expert_requests:respond");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const currentCase = DatabaseRepository.getCaseById(params.id);
+  const currentCase = DatabaseRepository.getCaseById(id);
   if (!currentCase || !ApiGuard.canAccessCase(user, currentCase)) {
     return ApiGuard.notFound("Case");
   }

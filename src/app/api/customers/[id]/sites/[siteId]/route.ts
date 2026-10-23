@@ -9,18 +9,19 @@ import { z } from "zod";
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; siteId: string } }
+  { params }: { params: Promise<{ id: string; siteId: string }> }
 ) {
+  const { id, siteId } = await params;
   const guard = ApiGuard.verifyAccess(request, "customers:update");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const customer = DatabaseRepository.getCustomerById(params.id);
+  const customer = DatabaseRepository.getCustomerById(id);
   if (!customer || !ApiGuard.canAccessCustomer(user, customer)) {
     return ApiGuard.notFound("Customer");
   }
 
-  const site = DatabaseRepository.getSiteById(params.siteId);
+  const site = DatabaseRepository.getSiteById(siteId);
   if (!site || site.customerId !== customer.id) return ApiGuard.notFound("Site");
 
   let body: unknown;
@@ -61,18 +62,19 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; siteId: string } }
+  { params }: { params: Promise<{ id: string; siteId: string }> }
 ) {
+  const { id, siteId } = await params;
   const guard = ApiGuard.verifyAccess(request, "customers:update");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const customer = DatabaseRepository.getCustomerById(params.id);
+  const customer = DatabaseRepository.getCustomerById(id);
   if (!customer || !ApiGuard.canAccessCustomer(user, customer)) {
     return ApiGuard.notFound("Customer");
   }
 
-  const site = DatabaseRepository.getSiteById(params.siteId);
+  const site = DatabaseRepository.getSiteById(siteId);
   if (!site || site.customerId !== customer.id) return ApiGuard.notFound("Site");
 
   const referencingCases = DatabaseRepository.getCases({ customerId: customer.id }).filter(

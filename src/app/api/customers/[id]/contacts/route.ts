@@ -18,21 +18,23 @@ function resolveScopedCustomer(request: NextRequest, customerId: string) {
 }
 
 /** GET /api/customers/[id]/contacts */
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const scope = resolveScopedCustomer(request, params.id);
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const scope = resolveScopedCustomer(request, id);
   if (scope.error) return scope.error;
 
-  const contacts = DatabaseRepository.getContactsByCustomerId(params.id);
+  const contacts = DatabaseRepository.getContactsByCustomerId(id);
   return NextResponse.json({ data: contacts, total: contacts.length });
 }
 
 /** POST /api/customers/[id]/contacts */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "customers:update");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const customer = DatabaseRepository.getCustomerById(params.id);
+  const customer = DatabaseRepository.getCustomerById(id);
   if (!customer || !ApiGuard.canAccessCustomer(user, customer)) {
     return ApiGuard.notFound("Customer");
   }

@@ -7,12 +7,13 @@ import { z } from "zod";
 /**
  * GET /api/customers/[id] — full customer detail incl. contacts and sites.
  */
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "customers:view");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const customer = DatabaseRepository.getCustomerById(params.id);
+  const customer = DatabaseRepository.getCustomerById(id);
   if (!customer) return ApiGuard.notFound("Customer");
   if (!ApiGuard.canAccessCustomer(user, customer)) {
     // 404 rather than 403: do not confirm the record exists to an out-of-scope caller.
@@ -33,12 +34,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
  * `accountManagerId` / `sirenOrVat` are deliberately immutable here: reassigning an
  * account or changing its legal identifier is an admin action with audit impact.
  */
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const guard = ApiGuard.verifyAccess(request, "customers:update");
   if (guard instanceof NextResponse) return guard;
   const user = guard.user;
 
-  const customer = DatabaseRepository.getCustomerById(params.id);
+  const customer = DatabaseRepository.getCustomerById(id);
   if (!customer) return ApiGuard.notFound("Customer");
   if (!ApiGuard.canAccessCustomer(user, customer)) return ApiGuard.notFound("Customer");
 
