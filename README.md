@@ -5,7 +5,7 @@
 [![CI Quality Gate](https://github.com/GrimRaven23/Project-1/actions/workflows/ci.yml/badge.svg)](https://github.com/GrimRaven23/Project-1/actions/workflows/ci.yml)
 [![Security Scan](https://github.com/GrimRaven23/Project-1/actions/workflows/security.yml/badge.svg)](https://github.com/GrimRaven23/Project-1/actions/workflows/security.yml)
 [![License: Proprietary / Enterprise](https://img.shields.io/badge/License-Enterprise-blue.svg)](LICENSE)
-[![SemVer](https://img.shields.io/badge/SemVer-0.1.0-green.svg)](docs/VERSIONING.md)
+[![SemVer](https://img.shields.io/badge/SemVer-1.0.0-green.svg)](docs/VERSIONING.md)
 [![OWASP ASVS](https://img.shields.io/badge/OWASP-ASVS%205.x-red.svg)](docs/THREAT-MODEL.md)
 
 ---
@@ -43,7 +43,7 @@ This is NOT merely a CRM, ticketing system, or quote generator. It **combines** 
 | 7 | **Secure Document Intake** | Controlled file upload with strict MIME-type sanitization and human-in-the-loop validation |
 | 8 | **Enterprise RBAC** | Role-Based Access Control protecting `SECURITY_SENSITIVE`, `CUSTOMER_CONFIDENTIAL`, and `RESTRICTED` data fields |
 | 9 | **Full Bilingual i18n** | Instant switching between **French** and **English** with localized formatting |
-| 10 | **Immutable Audit Trail** | Tamper-proof logging of every case state transition, expert response, and configuration change |
+| 10 | **Full Audit Trail** | Every case state transition, expert response, and configuration change is logged with actor, role, timestamp, and before/after state (see [Known Limitations](#-known-limitations) on durability) |
 
 ---
 
@@ -51,17 +51,16 @@ This is NOT merely a CRM, ticketing system, or quote generator. It **combines** 
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| **Framework** | Next.js (App Router) | 14.2.35 |
+| **Framework** | Next.js (App Router) | 15.5.x |
 | **UI** | React + TypeScript | 18.3.x |
 | **Styling** | Tailwind CSS | 3.4.x |
 | **Icons** | Lucide React | 0.453.x |
 | **Validation** | Zod | 3.23.x |
 | **Auth Utilities** | bcryptjs, jsonwebtoken | Latest stable |
-| **Testing** | Vitest + Testing Library | Latest stable |
-| **Runtime** | Node.js | 20.x LTS |
+| **Testing** | Vitest + Testing Library | 5.x |
+| **Runtime** | Node.js | 24.x LTS |
 | **Container** | Docker + Docker Compose | Multi-stage Alpine |
-| **Database (Production)** | PostgreSQL 16 | Via Docker Compose |
-| **Cache (Production)** | Redis 7 | Via Docker Compose |
+| **Datastore** | In-memory repository (seeded per process) | See [Known Limitations](#-known-limitations) |
 | **CI/CD** | GitHub Actions | 4 workflows |
 
 ---
@@ -72,19 +71,19 @@ Before running the application, ensure you have the following installed:
 
 | Tool | Minimum Version | Check Command |
 |------|----------------|---------------|
-| **Node.js** | 20.x LTS | `node --version` |
+| **Node.js** | 24.x LTS | `node --version` |
 | **npm** | 10.x | `npm --version` |
 | **Git** | 2.40+ | `git --version` |
-| **Docker** *(optional, for production)* | 24.x | `docker --version` |
-| **Docker Compose** *(optional, for production)* | 2.x | `docker compose version` |
+| **Docker** *(optional, for containers)* | 24.x | `docker --version` |
+| **Docker Compose** *(optional, for containers)* | 2.x | `docker compose version` |
 
 ### Install Node.js
 
-- **Windows**: Download from [nodejs.org](https://nodejs.org/) (LTS 20.x recommended)
-- **macOS**: `brew install node@20`
+- **Windows**: Download from [nodejs.org](https://nodejs.org/) (LTS 24.x recommended)
+- **macOS**: `brew install node@24`
 - **Linux (Ubuntu/Debian)**: 
   ```bash
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
@@ -117,29 +116,18 @@ cp .env.example .env.local
 Edit `.env.local` with your settings:
 
 ```env
-# Application
-NODE_ENV=development
-PORT=3000
-APP_URL=http://localhost:3000
-
-# Security & Authentication
+# The ONLY secret the application reads. Session JWTs are signed with it.
+# Dev falls back to a built-in dev-only key; production startup FAILS if
+# missing or shorter than 32 characters.
 JWT_SECRET=super-secret-dev-jwt-key-change-in-production-min-32-chars-long!
-JWT_EXPIRES_IN=8h
-
-# Database (dev mode uses in-memory store)
-DATABASE_TYPE=sqlite
-DATABASE_FILE=./storage/telcoqualify_dev.db
-
-# File Storage
-STORAGE_PROVIDER=local
-STORAGE_LOCAL_PATH=./storage/uploads
-
-# Logging
-LOG_LEVEL=debug
-AUDIT_LOG_ENABLED=true
 ```
 
 > ⚠️ **IMPORTANT**: Never commit `.env.local` to version control. The `.gitignore` already excludes it.
+>
+> **Note**: outside production the datastore seeds itself on first use with
+> clearly fictional demo data (`@example.test` personas, "(Demo)" customers).
+> In production the app starts empty unless `TELCO_ALLOW_SEEDING=true` is
+> explicitly set — never do that in a real deployment.
 
 ### 4. Start the Development Server
 
@@ -165,17 +153,37 @@ Once running, you can navigate to:
 | **Audit Log** | `/audit` | Immutable audit trail viewer |
 | **Admin** | `/admin` | Platform administration panel |
 
+#### Demo Access (Development Only)
+
+The application ships with **clearly fictional demo personas** (`*@example.test`,
+names like "Commercial Agent (Demo)") that are seeded automatically outside
+production. Sign in with any of them — they all share this demo password:
+
+```
+Email:    commercial.demo@example.test
+Password: TelecomDemo2026!
+```
+
+The full persona list is served by `GET /api/dev/personas` — a **dev-only**
+endpoint that hard-returns 403 when `NODE_ENV=production`.
+
 #### Role Switching (Development)
 
-The application includes a **Role Switcher** in the navigation bar for development and testing. You can switch between roles to see how the interface adapts:
+When running outside production, a **Role Switcher** appears in the
+navigation bar after login. It issues a real signed session for the selected
+demo persona (via `/api/dev/switch`) so you can see how the interface adapts:
 
-- `COMMERCIAL_AGENT` — Standard commercial user
+- `COMMERCIAL_AGENT` — Standard commercial user (scoped to own accounts/cases)
 - `COMMERCIAL_MANAGER` — Manager with approval authority
+- `PRESALES_ENGINEER` — Technical solution design
 - `NETWORK_EXPERT` — Network/SD-WAN domain specialist
 - `TELEPHONY_EXPERT` — Telephony/UCaaS specialist
 - `SECURITY_EXPERT` — Cybersecurity/firewall specialist
 - `PLATFORM_ADMIN` — Full administrative access
 - `AUDITOR_COMPLIANCE` — Read-only audit access
+
+> There is **no environment-variable escape hatch**: in production the
+> switcher and the dev endpoints are disabled unconditionally.
 
 #### Language Switching
 
@@ -190,10 +198,12 @@ Toggle between **French** and **English** using the language switcher in the top
 | `npm run dev` | Start Next.js development server with hot reload |
 | `npm run build` | Create optimized production build |
 | `npm run start` | Start production server (requires build first) |
-| `npm run lint` | Run ESLint static code analysis |
+| `npm run lint` | Run ESLint static code analysis (zero warnings tolerated) |
 | `npm run typecheck` | Run TypeScript strict type checking |
-| `npm run test` | Execute unit and integration test suite |
-| `npm run seed` | Seed the database with demo data |
+| `npm run test` | Run **both** test suites (custom business rules + Vitest) |
+| `npm run test:custom` | Run only the custom business-rule harness |
+| `npm run test:unit` | Run only the Vitest unit/integration suite |
+| `npm run test:watch` | Vitest in watch mode |
 
 ---
 
@@ -227,13 +237,23 @@ docker run -p 3000:3000 \
   telcoqualify:latest
 ```
 
-### Option C: Docker Compose (Full Stack)
+### Option C: Docker Compose
 
-This starts the application with PostgreSQL and Redis:
+Compose starts the app **plus Postgres and Redis services**. Note that the
+application currently uses an **in-memory repository** and does *not* connect
+to Postgres/Redis yet — those services are provisioned for the future
+persistent-datastore milestone (see [Known Limitations](#-known-limitations)).
+
+Secrets are **not committed**: compose reads them from
+`docker/docker-compose.env` (gitignored) and fails fast if they are missing.
 
 ```bash
-# Start all services
-docker compose -f docker/docker-compose.yml up -d
+# 1. Provide secrets (once)
+cp docker/docker-compose.env.example docker/docker-compose.env
+#    ...then edit it: set POSTGRES_* and a >=32-char JWT_SECRET
+
+# 2. Start all services
+docker compose -f docker/docker-compose.yml up -d --build
 
 # View logs
 docker compose -f docker/docker-compose.yml logs -f app
@@ -247,8 +267,8 @@ docker compose -f docker/docker-compose.yml down
 | Service | Port | Description |
 |---------|------|-------------|
 | `telcoqualify-app` | 3000 | Next.js application |
-| `telcoqualify-db` | 5432 | PostgreSQL 16 database |
-| `telcoqualify-redis` | 6379 | Redis 7 cache |
+| `telcoqualify-db` | 5432 *(loopback only)* | PostgreSQL 16 — reserved; not yet wired into the app |
+| `telcoqualify-redis` | 6379 *(loopback only)* | Redis 7 — reserved; not yet wired into the app |
 
 ---
 
@@ -262,13 +282,18 @@ npm run test
 
 ### Test Coverage
 
-The test suite includes:
+`npm run test` runs two harnesses (and CI gates on both):
+
+1. **Custom business-rule harness** (`scripts/test-runner.mjs`, 26 assertions) —
+   qualification rules, state machine, RBAC, masking, JWT behaviour
+2. **Vitest unit/integration suite** (`src/**/*.test.ts`, 30 tests):
 
 | Test File | Domain | What It Tests |
 |-----------|--------|--------------|
 | `qualification-engine.test.ts` | Core Logic | Deterministic qualification rules across telephony, network, Wi-Fi, and security domains |
 | `rbac.test.ts` | Security | Role-based permission enforcement, action authorization per role |
 | `case-state-machine.test.ts` | Workflow | Valid/invalid state transitions in the case lifecycle |
+| `api-guard.test.ts` | Security | Authentication guard, `customers:view_all` grant matrix, IDOR record scoping, seed-data hygiene |
 
 ### Type Checking
 
@@ -284,11 +309,14 @@ This runs TypeScript in strict mode (`noEmit`) to verify all types without produ
 
 ### Environment Requirements
 
-| Environment | Purpose | Database | Cache |
-|-------------|---------|----------|-------|
-| **Development** | Local coding & testing | In-memory (seeded) | None |
-| **Staging** | Pre-production validation | PostgreSQL 16 | Redis 7 |
-| **Production** | Live enterprise deployment | PostgreSQL 16 (managed) | Redis 7 (managed) |
+| Environment | Purpose | Datastore |
+|-------------|---------|-----------|
+| **Development** | Local coding & testing | In-memory repository, seeded with fictional demo data |
+| **Staging / Production** | Deployed evaluation | In-memory repository, **starts empty** (no seeding) — data does not survive a restart |
+
+> ⚠️ The platform does **not** yet persist data. Treat it as a workflow
+> demonstration, not a system of record, until the persistent-datastore
+> milestone lands (see [Known Limitations](#-known-limitations)).
 
 ### Production Environment Variables
 
@@ -297,36 +325,23 @@ This runs TypeScript in strict mode (`noEmit`) to verify all types without produ
 ```env
 # Required for Production
 NODE_ENV=production
-PORT=3000
-APP_URL=https://your-domain.com
 
 # Security (MUST change from defaults!)
+# The application refuses to start in production without it (or if < 32 chars).
 JWT_SECRET=<generate-a-secure-64-char-random-string>
-JWT_EXPIRES_IN=8h
-
-# Database
-DATABASE_TYPE=postgres
-DATABASE_URL=postgresql://user:password@host:5432/telcoqualify?schema=public
-
-# File Storage
-STORAGE_PROVIDER=local   # or 's3' for cloud storage
-STORAGE_LOCAL_PATH=/app/storage/uploads
-
-# Logging
-LOG_LEVEL=info
-AUDIT_LOG_ENABLED=true
 ```
+
+Any other variables (`PORT`, `APP_URL`, `DATABASE_*`, `STORAGE_*`, `LOG_LEVEL`, feature flags) are **not read by the application** — configuring them has no effect. `.env.example` documents the real surface.
 
 ### Production Deployment Checklist
 
 - [ ] Set `NODE_ENV=production`
 - [ ] Generate a strong `JWT_SECRET` (minimum 32 characters): `openssl rand -base64 48`
-- [ ] Configure PostgreSQL connection with SSL
-- [ ] Configure Redis connection
+- [ ] Confirm `TELCO_ALLOW_SEEDING` is **unset** (default: production starts clean)
 - [ ] Set proper `APP_URL` with HTTPS
 - [ ] Configure reverse proxy (Nginx/Caddy) with TLS
 - [ ] Enable HSTS headers
-- [ ] Set up database backups
+- [ ] Plan for **volatile state** (see Known Limitations) or add a reverse-proxy sticky single-instance topology
 - [ ] Configure log aggregation
 - [ ] Set up health check monitoring at `/api/health/liveness`
 - [ ] Review and apply security headers in `next.config.mjs`
@@ -339,18 +354,7 @@ The application exposes a health check at:
 GET /api/health/liveness
 ```
 
-Returns `200 OK` with `{ "status": "ok", "timestamp": "..." }` when the application is healthy. Use this for load balancer health checks and container orchestration.
-
-### Docker Production Architecture
-
-```
-Internet
-  → Reverse Proxy (Nginx/Caddy with TLS)
-    → TelcoQualify App (Port 3000)
-      → PostgreSQL 16 (Port 5432)
-      → Redis 7 (Port 6379)
-      → File Storage (Local Volume or S3)
-```
+Returns `200 OK` with `{ "status": "healthy", "timestamp": "...", "service": "telcoqualify-core", "version": "1.0.0", "uptimeSeconds": ... }`. Use this for load balancer health checks and container orchestration.
 
 ### Recommended Reverse Proxy (Nginx)
 
@@ -395,7 +399,8 @@ telcoqualify-enterprise/
 │       └── release.yml             # Production release + SBOM generation
 ├── docker/
 │   ├── Dockerfile                  # Multi-stage production container
-│   └── docker-compose.yml          # Full stack: app + PostgreSQL + Redis
+│   ├── docker-compose.yml          # app + reserved Postgres/Redis services (env-driven secrets)
+│   └── docker-compose.env.example  # Template for gitignored docker-compose.env
 ├── docs/
 │   ├── ARCHITECTURE.md             # System design & component diagram
 │   ├── RBAC.md                     # Role permission matrix
@@ -407,11 +412,10 @@ telcoqualify-enterprise/
 │   ├── DECISIONS.md                # Architecture Decision Records
 │   ├── VERSIONING.md               # SemVer & release strategy
 │   ├── CI-CD.md                    # Pipeline documentation
-│   └── DEVELOPMENT.md             # Developer onboarding guide
+│   ├── DEVELOPMENT.md              # Developer onboarding guide
+│   └── audits/                     # Inherited-state audit & remediation deliverables
 ├── scripts/
-│   ├── test-runner.mjs             # Custom test execution harness
-│   ├── run-tests.mjs               # Test orchestration
-│   ├── seed.mjs                    # Database seeding script
+│   ├── test-runner.mjs             # Custom business-rule test harness
 │   └── fix-node-modules.mjs        # Node modules repair utility
 ├── src/
 │   ├── app/                        # Next.js App Router pages
@@ -490,7 +494,7 @@ telcoqualify-enterprise/
 | Pipeline | Schedule | Tools |
 |----------|----------|-------|
 | **CI Quality Gate** | Every push/PR | TypeScript, ESLint, Vitest, Next.js build |
-| **SAST Security** | Every push to `main` | Gitleaks, CodeQL, Trivy |
+| **SAST Security** | Every push/PR to `master` | Gitleaks, CodeQL, Trivy |
 | **Daily Audit** | 04:00 UTC daily | `npm audit --audit-level=high` |
 | **Release** | On version tags | Docker build, CycloneDX SBOM |
 
@@ -510,6 +514,37 @@ See [docs/RBAC.md](docs/RBAC.md) for the complete permission matrix.
 | `SECURITY_EXPERT` | Security domain specialist |
 | `OPERATIONS_PROVISIONING` | Deployment & provisioning |
 | `AUDITOR_COMPLIANCE` | Read-only audit access |
+
+---
+
+## ⚠️ Known Limitations
+
+Verified during the 2026-10 inherited-state audit (details in
+[docs/audits/](docs/audits/)):
+
+1. **No persistent datastore.** All state (users, customers, cases, audit
+   trail, uploads index) lives in an in-memory repository seeded per process.
+   A restart wipes changes; audit history is not durable; running multiple
+   instances produces divergent data. Compose ships Postgres/Redis services,
+   but the application does not connect to them yet.
+2. **Login brute-force protection is per-process.** The failure window lives
+   in process memory — it resets on restart and is not shared across
+   instances. Put a shared limiter (edge/Redis) in front of it before scaling
+   out.
+3. **Document uploads are not malware-scanned.** New uploads start as
+   `PENDING_SCAN` (previously they were falsely marked `CLEAN`). Content is
+   type/extension-checked on upload, but no real scanner is wired in.
+4. **Catalog pricing and network/security rule fixtures are development
+   fixtures**, clearly labelled `(Demo)` — not a production product catalog.
+5. **CI has never actually run on GitHub** (the workflows targeted branches
+   that do not exist until the remediation in `docs/audits/`), and this
+   clone has no remote configured — badges will show no status until the
+   repo is pushed.
+6. **Known residual npm audit findings** (5, documented in
+   `docs/audits/SECURITY-AUDIT.md`): `postcss` bundled inside `next` and the
+   `tailwindcss@3` build-time chain. Both are build-time CSS tooling over
+   developer-authored input; upgrading would require breaking majors
+   (`next@16`, `tailwindcss@4`).
 
 ---
 
@@ -537,7 +572,7 @@ See [docs/RBAC.md](docs/RBAC.md) for the complete permission matrix.
 2. Follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `security:`, `docs:`, `test:`, `chore:`
 3. Ensure all checks pass: `npm run typecheck && npm run lint && npm run test`
 4. Build successfully: `npm run build`
-5. Push and create a Pull Request against `main`
+5. Push and create a Pull Request against `master`
 
 ---
 

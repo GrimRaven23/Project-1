@@ -12,8 +12,7 @@
     "test": "node scripts/test-runner.mjs && vitest run",
     "test:custom": "node scripts/test-runner.mjs",
     "test:unit": "vitest run",
-    "test:watch": "vitest",
-    "seed": "node scripts/seed.mjs"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
