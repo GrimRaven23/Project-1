@@ -1,22 +1,58 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useI18n } from "@/lib/i18n/context";
-import { SEED_USERS } from "@/core/storage/seed-data";
-import { Shield, Lock, Mail, ArrowRight, UserCheck, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { Shield, Lock, Mail, ArrowRight, Sparkles, AlertCircle } from "lucide-react";
+
+/**
+ * SECURITY: the demo personas and the shared demo password are development-only.
+ * In production this renders a plain email/password form with no seed accounts,
+ * no one-click sign-in, and no credential hint. The persona list is fetched from
+ * the dev-only /api/dev/personas endpoint, so seed users are never bundled into
+ * the client JS.
+ */
+
+interface Persona {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, currentUser } = useAuth();
-  const { language, setLanguage, t } = useI18n();
+  const { login } = useAuth();
+  const { language, setLanguage } = useI18n();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedQuickRole, setSelectedQuickRole] = useState<string | null>(null);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+
+  const isDev = process.env.NODE_ENV !== "production";
+
+  useEffect(() => {
+    if (!isDev) return;
+    let cancelled = false;
+
+    fetch("/api/dev/personas")
+      .then((res) => (res.ok ? res.json() : { data: [] }))
+      .then((data) => {
+        if (!cancelled) setPersonas(data.data || []);
+      })
+      .catch(() => {
+        // Dev convenience only — the form still works without it.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDev]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,11 +60,15 @@ export default function LoginPage() {
       setError(language === "fr" ? "Veuillez saisir votre email professionnel." : "Please enter your work email.");
       return;
     }
+    if (!password) {
+      setError(language === "fr" ? "Veuillez saisir votre mot de passe." : "Please enter your password.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
-    const res = await login(email, password || "Password123!");
+    const res = await login(email, password);
     setLoading(false);
 
     if (res.success) {
@@ -41,11 +81,10 @@ export default function LoginPage() {
   const handleSelectQuickUser = async (userEmail: string, roleName: string) => {
     setSelectedQuickRole(roleName);
     setEmail(userEmail);
-    setPassword("Password123!");
     setError(null);
     setLoading(true);
 
-    const res = await login(userEmail, "Password123!");
+    const res = await login(userEmail, DEV_DEMO_PASSWORD);
     setLoading(false);
 
     if (res.success) {
@@ -104,9 +143,16 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="commercial@telco-enterprise.fr"
+                  placeholder={
+                    isDev
+                      ? "commercial.demo@example.test"
+                      : language === "fr"
+                      ? "vous@entreprise.com"
+                      : "you@company.com"
+                  }
                   className="block w-full pl-10 pr-3 py-2.5 bg-slate-950/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   required
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -116,7 +162,7 @@ export default function LoginPage() {
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
                   {language === "fr" ? "Mot de Passe" : "Password"}
                 </label>
-                <span className="text-xs text-slate-500">Demo: Password123!</span>
+                {isDev && <span className="text-xs text-slate-500">Demo: {DEV_DEMO_PASSWORD}</span>}
               </div>
               <div className="mt-1.5 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
@@ -128,6 +174,8 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   className="block w-full pl-10 pr-3 py-2.5 bg-slate-950/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  required
+                  autoComplete="current-password"
                 />
               </div>
             </div>
@@ -148,37 +196,44 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Persona Access for Testing & Demo */}
-          <div className="mt-8 pt-6 border-t border-slate-800">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                {language === "fr" ? "Profils de Démonstration (1-Clic)" : "1-Click Demo Profiles"}
-              </h2>
+          {/* Quick Persona Access — DEVELOPMENT ONLY */}
+          {isDev && personas.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-slate-800">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {language === "fr" ? "Profils de Démonstration (1-Clic)" : "1-Click Demo Profiles"}
+                </h2>
+              </div>
+              <p className="text-[11px] text-slate-500 mb-3">
+                {language === "fr"
+                  ? "Données de démonstration fictives (@example.test). Disponible uniquement en développement."
+                  : "Fictional demo data (@example.test). Development builds only."}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                {personas.map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => handleSelectQuickUser(user.email, user.role)}
+                    className={`p-2.5 rounded-lg border text-left transition flex items-center justify-between ${
+                      selectedQuickRole === user.role
+                        ? "bg-blue-950/50 border-blue-500/80 text-white"
+                        : "bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/60 hover:border-slate-700 text-slate-300"
+                    }`}
+                  >
+                    <div className="truncate pr-2">
+                      <p className="text-xs font-semibold text-white truncate">{user.name}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{user.department}</p>
+                    </div>
+                    <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 flex-shrink-0">
+                      {user.role.split("_")[0]}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
-              {SEED_USERS.map((user) => (
-                <button
-                  key={user.id}
-                  type="button"
-                  onClick={() => handleSelectQuickUser(user.email, user.role)}
-                  className={`p-2.5 rounded-lg border text-left transition flex items-center justify-between ${
-                    selectedQuickRole === user.role
-                      ? "bg-blue-950/50 border-blue-500/80 text-white"
-                      : "bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/60 hover:border-slate-700 text-slate-300"
-                  }`}
-                >
-                  <div className="truncate pr-2">
-                    <p className="text-xs font-semibold text-white truncate">{user.name}</p>
-                    <p className="text-[10px] text-slate-400 truncate">{user.department}</p>
-                  </div>
-                  <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 flex-shrink-0">
-                    {user.role.split("_")[0]}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Security Notice */}
@@ -193,3 +248,9 @@ export default function LoginPage() {
     </div>
   );
 }
+
+/**
+ * Shared password for the seeded development personas only. It is referenced by
+ * the dev-only demo panel above and never rendered in a production build.
+ */
+const DEV_DEMO_PASSWORD = "TelecomDemo2026!";
