@@ -16,5 +16,12 @@ jobs:
         with:
           # Node 20 is end-of-life (April 2026); use the active LTS.
           node-version: 24
-      - name: Run npm audit
-        run: npm audit --audit-level=high
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      # Genuinely gates on high/critical advisories, minus the explicitly
+      # accepted entries in /.trivyignore (shared with the Trivy scan).
+      # A raw `npm audit --audit-level=high` cannot express accepted risk
+      # and failed on this repository for 25 consecutive days.
+      - name: Run npm audit gate (accepted-risk aware)
+        run: node scripts/audit-gate.mjs

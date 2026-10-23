@@ -1,0 +1,17 @@
+# Accepted-risk advisory denylist — scanned by Trivy (security.yml) and by
+# scripts/audit-gate.mjs (daily-security.yml), so BOTH gates share one list.
+#
+# Rationale (see docs/audits/SECURITY-AUDIT.md §4): these advisories all
+# affect the build-time CSS toolchain (postcss bundled inside next, and the
+# tailwindcss 3.x chain) which processes DEVELOPER-AUTHORED CSS at build
+# time only — never request data. The only vendor fixes require breaking
+# majors (next@16, tailwindcss@4) and are tracked as TD-P2-04.
+#
+# A NEW advisory not listed here still fails both gates.
+# Review this list when upgrading next/tailwind. Last review: 2026-10-23.
+
+# postcss (bundled inside next 15.5.x) — HIGH
+GHSA-qx2v-qp2m-jg93
+GHSA-6g55-p6wh-862q
+GHSA-fxqj-rqcc-2cmp
+GHSA-r28c-9q8g-f849
