@@ -4,18 +4,35 @@
  * and dual-store support (local fast memory/file state + PostgreSQL compatibility).
  */
 
-import { Customer, SolutionCase, ExpertRequest, AuditLogEntry, User } from "../domain/types";
+import { Customer, SolutionCase, ExpertRequest, AuditLogEntry, User, Site, Contact } from "../domain/types";
 import { SEED_CUSTOMERS, SEED_CASES, SEED_USERS } from "./seed-data";
 import { AuditService } from "../audit/audit-logger";
+
+/**
+ * Whether demo fixtures may be loaded into the in-memory store.
+ *
+ * SECURITY: production must start with a clean, empty store. Seeding real-looking
+ * demo accounts/customers into a production process would create unexplained data
+ * with known credentials. The guard keys off NODE_ENV, not a casually-set env var —
+ * `NODE_ENV` is derived from how the process is started and is not a deployment
+ * secret an operator flips on a whim. Set `TELCO_ALLOW_SEEDING=true` *and*
+ * NODE_ENV=production only if you deliberately want demo data in a prod-like build.
+ */
+const SEEDING_ENABLED =
+  process.env.NODE_ENV !== "production" || process.env.TELCO_ALLOW_SEEDING === "true";
 
 export class DatabaseRepository {
   private static customers: Map<string, Customer> = new Map();
   private static cases: Map<string, SolutionCase> = new Map();
   private static users: Map<string, User> = new Map();
+  private static sites: Map<string, Site> = new Map();
+  private static contacts: Map<string, Contact> = new Map();
   private static initialized: boolean = false;
 
   private static ensureInitialized() {
-    if (!this.initialized) {
+    if (this.initialized) return;
+
+    if (SEEDING_ENABLED) {
       for (const u of SEED_USERS) {
         this.users.set(u.id, u);
       }
@@ -25,8 +42,15 @@ export class DatabaseRepository {
       for (const sc of SEED_CASES) {
         this.cases.set(sc.id, sc);
       }
-      this.initialized = true;
+    } else if (process.env.NODE_ENV === "production") {
+      // Loud, single-line signal for operators inspecting production logs.
+      console.warn(
+        "[TelcoQualify] Starting with an EMPTY user/customer store (demo seeding disabled in production). " +
+          "Provision real users before serving traffic."
+      );
     }
+
+    this.initialized = true;
   }
 
   // Users
@@ -65,6 +89,59 @@ export class DatabaseRepository {
     this.ensureInitialized();
     this.customers.set(customer.id, customer);
     return customer;
+  }
+
+  // Users (write path — used by admin provisioning, not by seeding)
+  static saveUser(user: User): User {
+    this.ensureInitialized();
+    this.users.set(user.id, user);
+    return user;
+  }
+
+  // Contacts (customer-level address book)
+  static getContactsByCustomerId(customerId: string): Contact[] {
+    this.ensureInitialized();
+    return Array.from(this.contacts.values())
+      .filter((c) => c.customerId === customerId)
+      .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.name.localeCompare(b.name));
+  }
+
+  static getContactById(id: string): Contact | undefined {
+    this.ensureInitialized();
+    return this.contacts.get(id);
+  }
+
+  static saveContact(contact: Contact): Contact {
+    this.ensureInitialized();
+    this.contacts.set(contact.id, contact);
+    return contact;
+  }
+
+  static deleteContact(id: string): boolean {
+    this.ensureInitialized();
+    return this.contacts.delete(id);
+  }
+
+  // Sites (customer-level premises)
+  static getSitesByCustomerId(customerId: string): Site[] {
+    this.ensureInitialized();
+    return Array.from(this.sites.values()).filter((s) => s.customerId === customerId);
+  }
+
+  static getSiteById(id: string): Site | undefined {
+    this.ensureInitialized();
+    return this.sites.get(id);
+  }
+
+  static saveSite(site: Site): Site {
+    this.ensureInitialized();
+    this.sites.set(site.id, site);
+    return site;
+  }
+
+  static deleteSite(id: string): boolean {
+    this.ensureInitialized();
+    return this.sites.delete(id);
   }
 
   // Cases

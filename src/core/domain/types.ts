@@ -55,6 +55,20 @@ export interface User {
   role: UserRole;
   department: string;
   avatarUrl?: string;
+  passwordHash?: string;
+  isActive?: boolean;
+}
+
+export interface Contact {
+  id: string;
+  customerId: string;
+  name: string;
+  email: string;
+  phone: string;
+  position: string;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Customer {
@@ -64,12 +78,18 @@ export interface Customer {
   industrySegment: "SMB" | "PME" | "PMI" | "ENTERPRISE" | "PUBLIC_SECTOR";
   accountManagerId: string;
   accountManagerName: string;
+  /** Denormalised first contact. Kept for backwards compatibility with existing UI. */
   primaryContact: {
     name: string;
     email: string;
     phone: string;
     position: string;
   };
+  /**
+   * Full contact list. Optional so pre-existing records that only carry
+   * `primaryContact` still type-check; new records populate both.
+   */
+  contacts?: Contact[];
   createdAt: string;
   updatedAt: string;
 }

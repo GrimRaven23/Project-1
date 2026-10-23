@@ -6,69 +6,85 @@
 
 import { Customer, SolutionCase, User } from "../domain/types";
 
+const DEMO_PASSWORD_HASH = "$2a$10$OqqFW1z3Y6EUXMem4E/SueH/v3VgkyZbq4ayEb7EGl7wqTJ6Hrrj."; // TelecomDemo2026!
+
 export const SEED_USERS: User[] = [
   {
     id: "USR-COMM-01",
-    name: "Alexandre Martin",
-    email: "a.martin@telco-enterprise.fr",
+    name: "Commercial Agent (Demo)",
+    email: "commercial.demo@example.test",
     role: "COMMERCIAL_AGENT",
-    department: "B2B Sales PME/PMI"
+    department: "B2B Sales PME/PMI",
+    passwordHash: DEMO_PASSWORD_HASH,
+    isActive: true
   },
   {
     id: "USR-MGR-01",
-    name: "Claire Dupont",
-    email: "c.dupont@telco-enterprise.fr",
+    name: "Commercial Manager (Demo)",
+    email: "manager.demo@example.test",
     role: "COMMERCIAL_MANAGER",
-    department: "Commercial Direction"
+    department: "Commercial Direction",
+    passwordHash: DEMO_PASSWORD_HASH,
+    isActive: true
   },
   {
     id: "USR-EXP-SEC-01",
-    name: "Dr. Karim Benali",
-    email: "k.benali@telco-enterprise.fr",
+    name: "Security Expert (Demo)",
+    email: "security.expert.demo@example.test",
     role: "SECURITY_EXPERT",
-    department: "Cybersecurity & Firewall Engineering"
+    department: "Cybersecurity & Firewall Engineering",
+    passwordHash: DEMO_PASSWORD_HASH,
+    isActive: true
   },
   {
     id: "USR-EXP-NET-01",
-    name: "Thomas Leroy",
-    email: "t.leroy@telco-enterprise.fr",
+    name: "Network Expert (Demo)",
+    email: "network.expert.demo@example.test",
     role: "NETWORK_EXPERT",
-    department: "IP Network & SD-WAN Infrastructure"
+    department: "IP Network & SD-WAN Infrastructure",
+    passwordHash: DEMO_PASSWORD_HASH,
+    isActive: true
   },
   {
     id: "USR-EXP-TEL-01",
-    name: "Sophie Vallet",
-    email: "s.vallet@telco-enterprise.fr",
+    name: "Telephony Expert (Demo)",
+    email: "telephony.expert.demo@example.test",
     role: "TELEPHONY_EXPERT",
-    department: "Unified Communications & Cloud PBX"
+    department: "Unified Communications & Cloud PBX",
+    passwordHash: DEMO_PASSWORD_HASH,
+    isActive: true
   },
   {
     id: "USR-ADMIN-01",
-    name: "System Administrator",
-    email: "admin@telco-enterprise.fr",
+    name: "Super Administrator (Demo)",
+    email: "admin.demo@example.test",
     role: "SUPER_ADMIN",
-    department: "IT Operations & Security"
+    department: "IT Operations & Security",
+    passwordHash: DEMO_PASSWORD_HASH,
+    isActive: true
   },
   {
     id: "USR-AUDIT-01",
-    name: "Marc Laurent",
-    email: "m.laurent@telco-enterprise.fr",
+    name: "Compliance Auditor (Demo)",
+    email: "auditor.demo@example.test",
     role: "AUDITOR_COMPLIANCE",
-    department: "Internal Audit & Compliance"
+    department: "Internal Audit & Compliance",
+    passwordHash: DEMO_PASSWORD_HASH,
+    isActive: true
   }
 ];
 
 export const SEED_CUSTOMERS: Customer[] = [
   {
     id: "CUST-001",
-    companyName: "AeroTech Solutions SAS",
+    companyName: "AeroTech Solutions (Demo)",
     sirenOrVat: "FR82947192849",
     industrySegment: "PMI",
     accountManagerId: "USR-COMM-01",
-    accountManagerName: "Alexandre Martin",
+    accountManagerName: "Commercial Agent (Demo)",
     primaryContact: {
-      name: "Jean-Philippe Moreau",
-      email: "jp.moreau@aerotech-solutions.fr",
+      name: "Jean-Philippe Moreau (Demo)",
+      email: "dsi.contact@example.test",
       phone: "+33 1 42 68 90 12",
       position: "Directeur des Systèmes d'Information (DSI)"
     },
@@ -77,14 +93,14 @@ export const SEED_CUSTOMERS: Customer[] = [
   },
   {
     id: "CUST-002",
-    companyName: "BioPharma Laboratories",
+    companyName: "BioPharma Laboratories (Demo)",
     sirenOrVat: "FR44918274619",
     industrySegment: "PME",
     accountManagerId: "USR-COMM-01",
-    accountManagerName: "Alexandre Martin",
+    accountManagerName: "Commercial Agent (Demo)",
     primaryContact: {
-      name: "Nathalie Bernard",
-      email: "n.bernard@biopharma-lab.fr",
+      name: "Nathalie Bernard (Demo)",
+      email: "achats.contact@example.test",
       phone: "+33 4 72 39 88 44",
       position: "Responsable Achats & Moyens Généraux"
     },
@@ -93,14 +109,14 @@ export const SEED_CUSTOMERS: Customer[] = [
   },
   {
     id: "CUST-003",
-    companyName: "LogiTrans International",
+    companyName: "LogiTrans International (Demo)",
     sirenOrVat: "FR19384729103",
     industrySegment: "ENTERPRISE",
     accountManagerId: "USR-COMM-01",
-    accountManagerName: "Alexandre Martin",
+    accountManagerName: "Commercial Agent (Demo)",
     primaryContact: {
-      name: "Éric Dumas",
-      email: "e.dumas@logitrans-group.com",
+      name: "Éric Dumas (Demo)",
+      email: "tech.contact@example.test",
       phone: "+33 5 56 12 34 56",
       position: "Directeur Technique"
     },
@@ -117,7 +133,7 @@ export const SEED_CASES: SolutionCase[] = [
     customer: SEED_CUSTOMERS[0],
     title: "AeroTech Solutions - Multi-Site Fiber, Cloud PBX & Next-Gen Firewall Modernization",
     assignedCommercialId: "USR-COMM-01",
-    assignedCommercialName: "Alexandre Martin",
+    assignedCommercialName: "Commercial Agent (Demo)",
     participatingExpertDomains: ["CYBERSECURITY_FIREWALL", "TELEPHONY"],
     lifecycleState: "EXPERT_REVIEW_IN_PROGRESS",
     priority: "HIGH",
@@ -243,9 +259,9 @@ export const SEED_CASES: SolutionCase[] = [
         priority: "HIGH",
         status: "IN_PROGRESS",
         requestedByUserId: "USR-COMM-01",
-        requestedByUserName: "Alexandre Martin",
+        requestedByUserName: "Commercial Agent (Demo)",
         assignedExpertUserId: "USR-EXP-SEC-01",
-        assignedExpertUserName: "Dr. Karim Benali",
+        assignedExpertUserName: "Security Specialist (Demo)",
         questionTitle: "Firewall Throughput Sizing for 65 Users with SSL Deep Inspection",
         questionDetail: "Customer requires full SSL Deep Inspection for 65 users at HQ with 1Gbps symmetrical FTTO link. Need confirmation if FortiGate 70F is sufficient or if 80F/100F is mandatory for sustained SSL throughput.",
         requestedDeadline: "2026-10-02T18:00:00Z",
@@ -254,7 +270,7 @@ export const SEED_CASES: SolutionCase[] = [
         response: {
           respondedAt: "2026-09-27T15:30:00Z",
           expertUserId: "USR-EXP-SEC-01",
-          expertUserName: "Dr. Karim Benali",
+          expertUserName: "Security Specialist (Demo)",
           clientSafeRecommendation: "FortiGate 70F with dedicated CP9 hardware acceleration is fully qualified for 65 concurrent users with SSL Deep Inspection at ~800Mbps. Include FortiCare Enterprise 36-month subscription.",
           internalNotes: "CONFIDENTIAL SECURITY NOTE: Customer has sensitive CAD designs transferred via IPsec to Toulouse site. FortiGate 70F achieves 6.5Gbps IPsec VPN throughput, perfectly covering the 1Gbps line. No need to over-dimension to 100F unless employee count exceeds 120.",
           suggestedBomItems: [
@@ -321,7 +337,7 @@ export const SEED_CASES: SolutionCase[] = [
         opexMonthlyTotalEur: 130,
         mandatory: true,
         source: "EXPERT_RECOMMENDATION",
-        expertJustification: "Expert recommendation by Dr. Karim Benali (CP9 hardware SSL inspection)"
+        expertJustification: "Expert recommendation by Security Specialist (CP9 hardware SSL inspection)"
       }
     ],
     offers: [
@@ -352,7 +368,7 @@ export const SEED_CASES: SolutionCase[] = [
         mimeType: "application/pdf",
         sizeBytes: 1485200,
         uploadedByUserId: "USR-COMM-01",
-        uploadedByUserName: "Alexandre Martin",
+        uploadedByUserName: "Commercial Agent (Demo)",
         uploadedAt: "2026-09-26T09:30:00Z",
         scanStatus: "CLEAN",
         extractionStatus: "VALIDATED"
