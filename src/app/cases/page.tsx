@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { DatabaseRepository } from "@/core/storage/database";
 import { SolutionCase } from "@/core/domain/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n/context";
+import { apiGet, ApiError } from "@/lib/api/client";
 import { formatDate } from "@/lib/utils";
 import {
   FolderKanban,
@@ -14,31 +14,43 @@ import {
   Search,
   Building2,
   Calendar,
-  Layers,
-  Sparkles,
-  ArrowRight
+  ArrowRight,
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 
 export default function CasesListPage() {
   const { t, language } = useI18n();
   const [cases, setCases] = useState<SolutionCase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  useEffect(() => {
-    setCases(DatabaseRepository.getCases());
+  const loadCases = useCallback(async (query: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const qs = query ? `?search=${encodeURIComponent(query)}` : "";
+      const res = await apiGet<{ data: SolutionCase[] }>(`/api/cases${qs}`);
+      setCases(res.data || []);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load cases");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const filteredCases = cases.filter((sc) => {
-    const matchesSearch =
-      sc.caseNumber.toLowerCase().includes(search.toLowerCase()) ||
-      sc.title.toLowerCase().includes(search.toLowerCase()) ||
-      (sc.customer?.companyName || "").toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    const handle = setTimeout(() => void loadCases(search), 250);
+    return () => clearTimeout(handle);
+  }, [search, loadCases]);
 
-    const matchesStatus = statusFilter === "ALL" || sc.lifecycleState === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
+  // The API scopes results to the caller's permissions, so this is a display
+  // filter only — not an access-control boundary.
+  const filteredCases = cases.filter(
+    (sc) => statusFilter === "ALL" || sc.lifecycleState === statusFilter
+  );
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -91,6 +103,22 @@ export default function CasesListPage() {
       </div>
 
       {/* Cases List */}
+      {error && (
+        <div className="rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-4 text-sm text-rose-700 dark:text-rose-300 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="py-16 flex items-center justify-center gap-2 text-sm text-slate-400">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading cases…
+        </div>
+      ) : filteredCases.length === 0 ? (
+        <div className="py-16 text-center text-sm text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">
+          No cases found. Create your first solution case to start a qualification.
+        </div>
+      ) : (
       <div className="grid grid-cols-1 gap-4">
         {filteredCases.map((sc) => (
           <div
@@ -119,7 +147,7 @@ export default function CasesListPage() {
                     <Building2 className="w-3.5 h-3.5 text-blue-600" /> {sc.customer?.companyName}
                   </span>
                   <span>•</span>
-                  <span>{sc.sites.length} Sites ({sc.sites.map((s) => s.city).join(", ")})</span>
+                  <span>{sc.sites?.length || 0} Sites ({(sc.sites || []).map((s) => s.city).join(", ")})</span>
                   <span>•</span>
                   <span>Owner: {sc.assignedCommercialName}</span>
                 </div>
@@ -127,7 +155,7 @@ export default function CasesListPage() {
 
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
-                  {sc.participatingExpertDomains.map((dom) => (
+                  {(sc.participatingExpertDomains || []).map((dom) => (
                     <Badge key={dom} domain={dom}>
                       {dom.replace("_", " ")}
                     </Badge>
@@ -143,6 +171,7 @@ export default function CasesListPage() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

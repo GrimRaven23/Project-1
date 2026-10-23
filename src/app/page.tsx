@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { DatabaseRepository } from "@/core/storage/database";
 import { SolutionCase, ExpertRequest } from "@/core/domain/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth/auth-context";
 import { useI18n } from "@/lib/i18n/context";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -22,13 +22,45 @@ import {
 
 export default function DashboardPage() {
   const { t, language } = useI18n();
+  const { isAuthenticated } = useAuth();
   const [cases, setCases] = useState<SolutionCase[]>([]);
   const [expertRequests, setExpertRequests] = useState<ExpertRequest[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setCases(DatabaseRepository.getCases());
-    setExpertRequests(DatabaseRepository.getAllExpertRequests());
-  }, []);
+    // Wait until the session is resolved so we don't fire an unauthenticated
+    // request on first paint (which would 401 and render an empty dashboard).
+    if (!isAuthenticated) return;
+    let cancelled = false;
+
+    async function loadData() {
+      try {
+        // Same-origin fetches send the HttpOnly session cookie automatically.
+        const [casesRes, expertsRes] = await Promise.all([
+          fetch("/api/cases", { credentials: "same-origin" }),
+          fetch("/api/experts", { credentials: "same-origin" })
+        ]);
+
+        if (cancelled) return;
+        if (casesRes.ok) {
+          const casesData = await casesRes.json();
+          setCases(casesData.data || []);
+        }
+        if (expertsRes.ok) {
+          const expertsData = await expertsRes.json();
+          setExpertRequests(expertsData.data || []);
+        }
+      } catch {
+        // Graceful degradation — show empty state
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadData();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   const awaitingExpertCount = cases.filter((c) => c.lifecycleState === "EXPERT_REVIEW_REQUIRED" || c.lifecycleState === "EXPERT_REVIEW_IN_PROGRESS").length;
   const qualifiedCount = cases.filter((c) => c.lifecycleState === "QUALIFICATION_COMPLETE" || c.lifecycleState === "SOLUTION_READY" || c.lifecycleState === "OFFER_PREPARATION" || c.lifecycleState === "APPROVED").length;
@@ -132,28 +164,34 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {cases.map((sc) => (
-              <div key={sc.id} className="py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 px-3 rounded-xl transition-colors">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">{sc.caseNumber}</span>
-                    <Badge status={sc.lifecycleState}>{sc.lifecycleState.replace(/_/g, " ")}</Badge>
-                    <Badge priority={sc.priority}>{sc.priority}</Badge>
+          {loading ? (
+            <div className="py-12 text-center text-sm text-slate-400">Loading cases...</div>
+          ) : cases.length === 0 ? (
+            <div className="py-12 text-center text-sm text-slate-400">No cases yet. Create your first solution case.</div>
+          ) : (
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {cases.map((sc) => (
+                <div key={sc.id} className="py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 px-3 rounded-xl transition-colors">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">{sc.caseNumber}</span>
+                      <Badge status={sc.lifecycleState}>{sc.lifecycleState.replace(/_/g, " ")}</Badge>
+                      <Badge priority={sc.priority}>{sc.priority}</Badge>
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{sc.title}</h4>
+                    <p className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                      <Building2 className="w-3.5 h-3.5" /> {sc.customer?.companyName} • {sc.sites?.length || 0} Sites • Owner: {sc.assignedCommercialName}
+                    </p>
                   </div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{sc.title}</h4>
-                  <p className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
-                    <Building2 className="w-3.5 h-3.5" /> {sc.customer?.companyName} • {sc.sites.length} Sites • Owner: {sc.assignedCommercialName}
-                  </p>
+                  <Link href={`/cases/${sc.id}`}>
+                    <Button size="sm" variant="outline">
+                      {t.common.viewDetails}
+                    </Button>
+                  </Link>
                 </div>
-                <Link href={`/cases/${sc.id}`}>
-                  <Button size="sm" variant="outline">
-                    {t.common.viewDetails}
-                  </Button>
-                </Link>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Specialist Escalations Queue */}
