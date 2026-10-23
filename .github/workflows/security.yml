@@ -1,11 +1,11 @@
 name: Security & SAST Pipeline
 
-# Triggered on the repository's actual default branch (`master`).
+# Triggered on the repository's GitHub default branch (`main`).
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 permissions:
   contents: read

@@ -1,13 +1,14 @@
 name: CI Quality Gate
 
-# NOTE: the repository's default branch is `master` (not `main`/`develop`).
-# The previous triggers referenced branches that do not exist, so this gate
-# never ran on any push or PR.
+# The repository's GitHub default branch is `main` (verified via API); the
+# local working copy had been left on a local-only `master` branch with no
+# remote. `develop` does not exist and is dropped. Historically this gate
+# ran 3x on `main` and failed all 3 times (missing ESLint config).
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
