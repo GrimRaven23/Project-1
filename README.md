@@ -536,19 +536,21 @@ Verified during the 2026-10 inherited-state audit (details in
    type/extension-checked on upload, but no real scanner is wired in.
 4. **Catalog pricing and network/security rule fixtures are development
    fixtures**, clearly labelled `(Demo)` — not a production product catalog.
-5. **CI history on GitHub was poor and is only now corrected.** The public
-   repo's default branch is `main`; this working copy had been left on a
-   local-only `master` with no remote. GitHub's run history shows the CI
-   Quality Gate failed 3/3 runs (missing ESLint config), the Security
+5. **CI on GitHub is now green — confirmed on the runner 2026-10-23.** The
+   public repo's default branch is `main`; this working copy had been left on
+   a local-only `master` with no remote. GitHub's run history showed the CI
+   Quality Gate had failed 3/3 runs (missing ESLint config), the Security
    pipeline "passed" only because Trivy was non-gating, and the daily audit
-   failed 25/25 days on open CVEs. All three are now fixed (retargeted
-   triggers, gating scans with a documented accepted-risk list) — the first
-   push after remediation must be watched to confirm them green.
+   had failed 25/25 days on open CVEs. All three are now green on `main` —
+   the Security gate's first run failed *as designed*, catching a `postcss`
+   HIGH that was then eliminated rather than accepted
+   (`docs/audits/FINAL-REMEDIATION-REPORT.md` §6).
 6. **Known residual npm audit findings** (3, all **moderate**, documented in
-   `docs/audits/SECURITY-AUDIT.md` §4): the `tailwindcss` 3.x chain
-   `tailwindcss@3` build-time chain. Both are build-time CSS tooling over
-   developer-authored input; upgrading would require breaking majors
-   (`next@16`, `tailwindcss@4`).
+   `docs/audits/SECURITY-AUDIT.md` §4.2): the `tailwindcss` 3.x build-time
+   chain (`tailwindcss`, `postcss-nested`, `postcss-selector-parser`) over
+   developer-authored input; clearing them requires the breaking
+   `tailwindcss@4` migration. **Zero high/critical advisories remain** and
+   none are accepted.
 
 ---
 

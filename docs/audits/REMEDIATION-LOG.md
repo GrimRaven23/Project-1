@@ -73,7 +73,23 @@ This journal records all systematic repairs, architectural fixes, security patch
 | `d788ba9` | fix(next)!: awaited route params for Next.js 15 + direct ESLint invocation |
 | `e661575` | chore(deps): 9 advisories cleared incl. 2 criticals; Node 20 → 24 LTS |
 | `d7060cf` | docs: README/env/doc truth pass |
-| *(this batch)* | docs(audits): refreshed audit suite + final remediation report |
+| `105d7e0` | docs(audits): refreshed audit suite + final remediation report |
+| `cb85552` | chore(next): updated generated `next-env.d.ts` for Next.js 15 |
+| `0a5b163` | fix(deps): zod 3.23.8 → 4.6.7 (GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404) |
+| `5d19c54` | ci(security): accepted-risk-aware audit gate (`scripts/audit-gate.mjs`, `/.trivyignore`) |
+| `ca9bb20` | ci: retarget push/PR triggers to the real default branch `main` |
+| `bde2b55` | docs(audits): CI-history narrative corrected from GitHub API evidence; REM-032…034 |
+| `31d71c7` | fix(deps): postcss advisories **eliminated** via `overrides` (REM-035) |
+| `ea7926d` | docs(audits): postcss elimination + GHSA/CVE id-mismatch recorded; report §6 |
+
+**Push & CI record** — 18 commits fast-forwarded to `origin/main`
+(`bdd3f9d` → `ea7926d`), pushed 2026-10-23. Observed on the runner:
+
+| Workflow | Pre-remediation | Post-push |
+|---|---|---|
+| CI Quality Gate | failed 3/3 | ✅ success (runs 40029356888, 40030591763) |
+| Security & SAST Pipeline | passed 3/3 vacuously | ❌ failed as designed → ✅ success (40029356894 → 40030591787) |
+| Daily Automated Security Audit | failed 25/25 | ✅ success by manual dispatch (40031099453) |
 
 ---
 

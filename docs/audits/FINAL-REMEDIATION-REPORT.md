@@ -22,7 +22,7 @@ The platform was inherited in a state where **every security gate could be walke
 | API routes with authn/authz/IDOR/validation | partial, bypassable | **all** (guard + RBAC + 404-scoping + zod whitelist) |
 | Client pages using server API | 0 (direct in-process imports) | **all** (cookie-based REST client) |
 | Automated tests | 26 custom (runner half-wired) | **26 custom + 30 Vitest**, both in `npm test` and CI |
-| CI gate outcomes on GitHub | CI Quality Gate failing 3/3; security "passing" vacuously; daily audit failing 25/25 | **remediated** — triggers on `main`, gating Trivy, accepted-risk audit gate; post-push runs confirm (see report §6) |
+| CI gate outcomes on GitHub | CI Quality Gate failing 3/3; security "passing" vacuously; daily audit failing 25/25 | **remediated & confirmed green** on `main` 2026-10-23 (quality ✅, security ✅ after its first run failed as designed, daily audit ✅ by dispatch) — see report §6 |
 | Core Customer→Case workflow | broken / hardcoded fixtures | **working end-to-end** with server-side authorization |
 | Next.js advisories (3 critical RCE + 1 high DoS) | open | **patched** (14.2.35 → 15.5.28 + awaited `params`) |
 
@@ -91,7 +91,55 @@ The platform was inherited in a state where **every security gate could be walke
 
 **Conditions to lift the verdict:**
 1. **B1 (blocking):** implement persistent storage (TD-P2-01) with restore procedure; verify empty-state boot in production mode.
-2. **B2 (blocking):** push to GitHub; confirm all four workflows green on `main`; enable branch protection on the quality gate. *(Status: push performed 2026-10-23 — see §6.)*
+2. **B2 (blocking):** push to GitHub; confirm all four workflows green on `main`; enable branch protection on the quality gate. *(Status: **pushed and green** — CI Quality Gate ✅, Security & SAST ✅, Daily Audit ✅ by manual dispatch, all on `main` 2026-10-23; see §6. Branch protection still to be enabled.)*
 3. **B3 (recommended before real users):** move rate limiting/session revocation to shared storage, add CSP + HSTS, wire Docker build + image scan into CI, and complete at least one E2E pass over the Customer → Case → Qualification → Offer flow.
+
+---
+
+## 6. Post-Push CI Results (verified on GitHub, 2026-10-23)
+
+The repository was pushed to `https://github.com/GrimRaven23/Project-1.git`
+after reconciling the local `master` branch into the remote's default branch
+`main` (a clean fast-forward from `bdd3f9d`; no history rewritten, no force
+push). The workflows were then observed executing on the runner — this is the
+evidence for verdict condition **B2**.
+
+### 6.1 Run history, before vs. after
+
+| Workflow | Pre-remediation on GitHub | First post-push run | Final run |
+|---|---|---|---|
+| CI Quality Gate | **failed 3/3** | ✅ success (`bde2b55`) | ✅ success (`ea7926d`) |
+| Security & SAST Pipeline | passed 3/3 **vacuously** (Trivy non-gating) | ❌ **failed as designed** (`bde2b55`) | ✅ success (`ea7926d`) |
+| Daily Automated Security Audit | **failed 25/25** (since 2026-09-29) | not yet scheduled | ✅ **success** (manual dispatch, run 40031099453) |
+
+### 6.2 The security gate's first failure was the point, not a problem
+
+On the first post-push run the Security pipeline went **red**, and that
+failure is the single most valuable signal of the whole remediation:
+
+- Trivy (now genuinely gating, `exit-code: '1'`) raised **four `postcss`
+  advisories by CVE id** — CVE-2026-73646, CVE-2026-45623, CVE-2026-41305,
+  CVE-2026-69153 — that `npm audit` on the same tree reported differently.
+- This exposed that the accepted-risk list carried **GHSA** ids while Trivy
+  reports **CVE** ids, and the two spaces do not map 1:1, so the accepted
+  entries would never have suppressed the findings (**SEC-015**).
+- Re-examining the premise also disproved it: the postcss HIGH is fixable
+  **within major 8**. `next@15.5.28` merely exact-pins a nested
+  `postcss@8.4.31` next to an already-patched root `8.5.31`. A one-line
+  `overrides` entry collapsed the vulnerable copy into the patched one.
+
+After `31d71c7` the same pipeline is **green**, with `/.trivyignore` empty of
+advisory ids and **zero accepted high/critical risk** — a stronger position
+than the one originally documented as accepted.
+
+### 6.3 What this satisfies
+
+- **B2 (blocking condition) is met for the two push-triggered workflows**:
+  both are green on `main` after remediation.
+- The daily audit's 25-day failure streak is broken and its accepted-risk
+  logic was proven live by manual dispatch; its next scheduled run (04:00 UTC)
+  should be watched once to confirm.
+- **Remaining B2 item:** branch protection is not enabled on `main` (requires
+  a UI/API step with admin scope that this environment did not exercise).
 
 **Signed off:** audit → repair → re-verification completed October 23, 2026. Companion evidence: `REMEDIATION-LOG.md` (commit-mapped journal), `SECURITY-AUDIT.md` §5 (verification record), `CURRENT-STATE-AUDIT.md` §5 (re-assessment).
