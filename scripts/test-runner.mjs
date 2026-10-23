@@ -199,7 +199,9 @@ const authCookie = JwtService.createAuthCookie(token);
 assert(authCookie.includes("HttpOnly") && authCookie.includes("SameSite=Lax"), "Auth cookie includes HttpOnly and SameSite=Lax flags for defense-in-depth");
 
 console.log("\n=======================================================");
-console.log(`🎯 TOTAL RESULTS: ${passed} PASSED, ${failed} FAILED (100% Success Rate)`);
+const total = passed + failed;
+const successRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+console.log(`🎯 TOTAL RESULTS: ${passed} PASSED, ${failed} FAILED (${successRate}% Success Rate)`);
 console.log("=======================================================\n");
 
 if (failed > 0) process.exit(1);

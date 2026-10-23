@@ -43,3 +43,6 @@ Thumbs.db
 
 # TypeScript incremental build artifact
 *.tsbuildinfo
+
+# Local docker compose secrets (template: docker/docker-compose.env.example)
+/docker/docker-compose.env

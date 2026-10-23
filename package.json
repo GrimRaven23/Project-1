@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
-    "test": "node scripts/test-runner.mjs",
+    "test": "node scripts/test-runner.mjs && vitest run",
+    "test:custom": "node scripts/test-runner.mjs",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
     "seed": "node scripts/seed.mjs"
   },
   "dependencies": {

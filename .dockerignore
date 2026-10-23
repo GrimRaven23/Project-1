@@ -1,0 +1,24 @@
+# Build context exclusions — keep the image small and never bake secrets or
+# local state into a build. The previous file was EMPTY, so `COPY . .` shipped
+# .git, node_modules, .next and any local .env into the builder stage.
+.git
+.github
+.next
+node_modules
+coverage
+docs
+dist
+build
+
+# Local env files must never enter an image layer
+.env
+.env.*
+!.env.example
+
+# Local state & artifacts
+storage/uploads/*
+!storage/uploads/.gitkeep
+*.tsbuildinfo
+npm-debug.log*
+*.md
+!README.md

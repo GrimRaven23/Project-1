@@ -1,10 +1,11 @@
 name: Security & SAST Pipeline
 
+# Triggered on the repository's actual default branch (`master`).
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 permissions:
   contents: read
@@ -20,6 +21,7 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Fails the job when leaked credentials are found (no `continue-on-error`).
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -47,14 +49,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Pinned to an immutable release tag. The old `@master` reference moved
+      # without notice (and trivy-action's tags were briefly targeted by a
+      # supply-chain attack), so a floating ref is not acceptable here.
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'fs'
           ignore-unfixed: true
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+          # Gate on findings: without exit-code the scan only uploads a report
+          # and the job stays green even with critical vulnerabilities.
+          exit-code: '1'
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3

@@ -3,21 +3,27 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
-ENV NODE_ENV=production
 
 # Dependency installation stage
 FROM base AS deps
 WORKDIR /app
+# devDependencies are omitted only here; the builder below needs them.
+ENV NODE_ENV=production
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
 # Build stage
 FROM base AS builder
 WORKDIR /app
+# SECURITY/CORRECTNESS: the base image used to set NODE_ENV=production for the
+# whole build, which makes `npm ci` skip devDependencies (typescript, eslint,
+# tailwind) and break `next build`. Build with the default environment and let
+# Next.js choose production output itself.
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # Production runner stage
@@ -35,6 +41,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=telcouser:nodejs /app/.next ./.next
 COPY --from=builder --chown=telcouser:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=telcouser:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=telcouser:nodejs /app/scripts ./scripts
+# Runtime upload directory (seeded with .gitkeep so COPY never fails on a
+# fresh clone) — chowned so the non-root user can write uploads.
 COPY --from=builder --chown=telcouser:nodejs /app/storage ./storage
 
 USER telcouser

@@ -1,4 +1,11 @@
-version: '3.8'
+# Local/dev orchestration. Secrets are NOT committed: every credential below is
+# read from an env file (`.env` at this directory) or the host environment, and
+# compose fails fast when they are missing. Copy `docker-compose.env.example`
+# to `docker-compose.env` and fill in real values before starting.
+#
+# The previous version hardcoded a Postgres password and a JWT secret directly
+# in this tracked file — the JWT secret is now required from the environment
+# and is validated for length by the application itself in production.
 
 services:
   app:
@@ -11,9 +18,10 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://telco_admin:Secr3tPostgresPass!@postgres:5432/telcoqualify?schema=public
-      - DATABASE_TYPE=postgres
-      - JWT_SECRET=prod-grade-32-character-enterprise-secret-key!
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required - see docker-compose.env.example}
+      - DATABASE_TYPE=${DATABASE_TYPE:-postgres}
+      # Must be >=32 chars; the app hard-fails at boot otherwise.
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required - see docker-compose.env.example}
       - STORAGE_PROVIDER=local
       - STORAGE_LOCAL_PATH=/app/storage/uploads
     depends_on:
@@ -31,15 +39,16 @@ services:
     container_name: telcoqualify-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: telco_admin
-      POSTGRES_PASSWORD: Secr3tPostgresPass!
-      POSTGRES_DB: telcoqualify
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required - see docker-compose.env.example}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - see docker-compose.env.example}
+      POSTGRES_DB: ${POSTGRES_DB:-telcoqualify}
     ports:
-      - "5432:5432"
+      # Bound to loopback: the database must not be exposed on all interfaces.
+      - "127.0.0.1:5432:5432"
     volumes:
       - telco_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U telco_admin -d telcoqualify"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,7 +60,8 @@ services:
     container_name: telcoqualify-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      # Bound to loopback for the same reason.
+      - "127.0.0.1:6379:6379"
     volumes:
       - telco_redis_data:/data
     healthcheck:
