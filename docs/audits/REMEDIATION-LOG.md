@@ -41,7 +41,8 @@ This journal records all systematic repairs, architectural fixes, security patch
 | **REM-018** | P0 | Login brute-force protection (5 failures/15 min per IP+email → 429) | `src/app/api/auth/login/route.ts` | **DONE** — `99a132b` (per-process; residual = SEC-014) |
 | **REM-019** | P0 | Route lifecycle changes hop-by-hop through `CaseStateMachine`; documents start `PENDING_SCAN` (was false `CLEAN`); filename path/control-char rejection; audit limit clamped (≤500) | `src/app/api/cases/**` | **DONE** — `99a132b` |
 | **REM-020** | P0 | HttpOnly cookie-only session: JWT no longer in response body, no `localStorage`, AuthGuard/AppShell on every route but `/login` | `src/lib/auth/*`, `src/app/api/auth/login` | **DONE** — `c98f03b` |
-| **REM-021** | P1 | CI: retarget dead `main`/`develop` triggers to real `master` branch; wire Vitest into `npm test` + CI | `.github/workflows/ci.yml`, `package.json` | **DONE** — `4ea8dc4` |
+| **REM-021** | P1 | CI: settle triggers on the verified GitHub default branch `main` (the local copy sat on a local-only `master` with no remote; `develop` never existed) and wire Vitest into `npm test` + CI | `.github/workflows/ci.yml`, `package.json` | **DONE** — `4ea8dc4`, refined `d7060cf`+pre-push check |
+| **REM-032** | P1 | **Pre-push branch reconciliation:** GitHub API revealed the public repo's default branch is `main` with real run history (CI failing 3/3, security passing vacuously, daily audit failing 25/25 — correcting the local-only "never triggered" finding); workflows retargeted `master`→`main`, local branch renamed, docs corrected across 8 files | `.github/workflows/*`, `README.md`, `docs/*` | **DONE — this batch** |
 | **REM-022** | P1 | CI: pin Trivy action `@master` → immutable `v0.36.0`; add `exit-code: '1'` so CRITICAL/HIGH genuinely gate | `.github/workflows/security.yml` | **DONE** — `4ea8dc4` |
 | **REM-023** | P1 | Docker: populate empty `.dockerignore` (`.git`/`node_modules`/`.next`/`.env*` excluded); builder `NODE_ENV` fix; runner copies `scripts/`+`storage/` | `.dockerignore`, `docker/Dockerfile` | **DONE** — `4ea8dc4` |
 | **REM-024** | P1 | Docker Compose: remove committed Postgres password/JWT secret → required env interpolation + gitignored `docker/docker-compose.env` + committed example; DB/Redis ports loopback-only | `docker/docker-compose.yml`, `docker/docker-compose.env.example` | **DONE** — `4ea8dc4` |
@@ -50,7 +51,9 @@ This journal records all systematic repairs, architectural fixes, security patch
 | **REM-027** | P0 | Next 15 breaking change: await `params` in all 19 dynamic route handlers (fixes `sync-dynamic-apis` errors + `.next/types` type failures); switch lint off deprecated `next lint` to `eslint . --max-warnings=0` | `src/app/api/**` (11 files), `package.json` | **DONE** — `d788ba9` (verified: 0 deprecation errors in live log) |
 | **REM-028** | P1 | Dependency upgrade: `eslint-config-next` → 15.5.28 (matches runtime; clears `glob` chain), `vitest` 2 → 5.0.5 + `@types/node` 24 (clears both criticals); 30/30 tests verified on v5 | `package.json` | **DONE** — `e661575` |
 | **REM-029** | P1 | EOL runtime: Node 20 (EOL April 2026) → Node 24 LTS in CI, daily audit workflow, and Docker base/runner images | `.github/workflows/*`, `docker/Dockerfile` | **DONE** — `e661575` |
-| **REM-030** | P1 | Documentation truth pass: README (version badge 0.1.0→1.0.0, Postgres/Redis claims removed, real demo credentials, Known Limitations section, `main`→`master`), `.env.example` reduced to the 3 env vars actually read, `docs/CI-CD.md` + `docs/SECURITY.md` stripped of phantom Playwright/Semgrep/Prometheus/Redis-blacklist claims | `README.md`, `.env.example`, `docs/CI-CD.md`, `docs/SECURITY.md` | **DONE** — `d7060cf` |
+| **REM-030** | P1 | Documentation truth pass: README (version badge 0.1.0→1.0.0, Postgres/Redis claims removed, real demo credentials, Known Limitations section), `.env.example` reduced to the 3 env vars actually read, `docs/CI-CD.md` + `docs/SECURITY.md` stripped of phantom Playwright/Semgrep/Prometheus/Redis-blacklist claims | `README.md`, `.env.example`, `docs/CI-CD.md`, `docs/SECURITY.md` | **DONE** — `d7060cf` |
+| **REM-033** | P0 | **New HIGH advisory caught by the new audit gate before push:** zod `GHSA-mrhx-c7xc-m3w5` (CVE-2023-54404, memory-exhaustion DoS; all zod 3.x affected) → upgrade zod 3.23 → 4.6.7 (zero code changes; typecheck/tests/build green on v4) | `package.json`, `package-lock.json` | **DONE — this batch** |
+| **REM-034** | P1 | Replace raw `npm audit --audit-level=high` (cannot express accepted risk; failed 25/25 days) with `scripts/audit-gate.mjs` — gates on unaccepted high/critical only, tolerating entries documented in tracked `/.trivyignore` (shared with Trivy, so both security gates agree); wire into `daily-security.yml` | `scripts/audit-gate.mjs`, `.trivyignore`, `.github/workflows/daily-security.yml` | **DONE — this batch** (verified: PASS locally with only postcss accepted) |
 | **REM-031** | P2 | Refresh all audit deliverables with post-remediation status; write FINAL-REMEDIATION-REPORT; correct `docs/THREAT-MODEL.md` aspirational claims | `docs/audits/*`, `docs/THREAT-MODEL.md` | **DONE — this entry** |
 
 ---
@@ -82,5 +85,9 @@ npm run test        → 26/26 custom + 30/30 Vitest, exit 0
 npm run build       → exit 0, 23 routes
 dev-server smoke    → login 200; /api/customers/CUST-001 200; /api/cases/CASE-2026-001 200;
                       all 8 pages 200; 0 sync-dynamic-apis / deprecation errors in log
-npm audit           → 14 → 5 findings (2 critical → 0); 5 build-time residuals accepted & documented
+npm audit (via scripts/audit-gate.mjs)
+              → PASS: 5 findings (2 critical → 0); only documented postcss/tailwind
+                build-time residuals accepted (/.trivyignore); zod HIGH
+                (GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404) caught by the gate
+                pre-push and fixed (zod 3 → 4.6.7)
 ```

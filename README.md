@@ -494,7 +494,7 @@ telcoqualify-enterprise/
 | Pipeline | Schedule | Tools |
 |----------|----------|-------|
 | **CI Quality Gate** | Every push/PR | TypeScript, ESLint, Vitest, Next.js build |
-| **SAST Security** | Every push/PR to `master` | Gitleaks, CodeQL, Trivy |
+| **SAST Security** | Every push/PR to `main` | Gitleaks, CodeQL, Trivy |
 | **Daily Audit** | 04:00 UTC daily | `npm audit --audit-level=high` |
 | **Release** | On version tags | Docker build, CycloneDX SBOM |
 
@@ -536,10 +536,14 @@ Verified during the 2026-10 inherited-state audit (details in
    type/extension-checked on upload, but no real scanner is wired in.
 4. **Catalog pricing and network/security rule fixtures are development
    fixtures**, clearly labelled `(Demo)` — not a production product catalog.
-5. **CI has never actually run on GitHub** (the workflows targeted branches
-   that do not exist until the remediation in `docs/audits/`), and this
-   clone has no remote configured — badges will show no status until the
-   repo is pushed.
+5. **CI history on GitHub was poor and is only now corrected.** The public
+   repo's default branch is `main`; this working copy had been left on a
+   local-only `master` with no remote. GitHub's run history shows the CI
+   Quality Gate failed 3/3 runs (missing ESLint config), the Security
+   pipeline "passed" only because Trivy was non-gating, and the daily audit
+   failed 25/25 days on open CVEs. All three are now fixed (retargeted
+   triggers, gating scans with a documented accepted-risk list) — the first
+   push after remediation must be watched to confirm them green.
 6. **Known residual npm audit findings** (5, documented in
    `docs/audits/SECURITY-AUDIT.md`): `postcss` bundled inside `next` and the
    `tailwindcss@3` build-time chain. Both are build-time CSS tooling over
@@ -572,7 +576,7 @@ Verified during the 2026-10 inherited-state audit (details in
 2. Follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `security:`, `docs:`, `test:`, `chore:`
 3. Ensure all checks pass: `npm run typecheck && npm run lint && npm run test`
 4. Build successfully: `npm run build`
-5. Push and create a Pull Request against `master`
+5. Push and create a Pull Request against `main`
 
 ---
 

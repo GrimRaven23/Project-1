@@ -138,6 +138,7 @@ A rigorous defensive security review was conducted across the codebase, covering
   - `eslint-config-next` → 15.5.28 — clears the `@next/eslint-plugin-next → glob` command-injection chain.
   - `vitest` 2.1.9 → **5.0.5** (+ `@types/node` 24) — clears **both criticals** (`tinypool` prototype-pollution RCE) plus `vite`/`vite-node`/`@vitest/mocker`/`esbuild` advisories.
   - Unused `uuid` dependency removed.
+  - **New advisory caught by the remediation gate:** zod `GHSA-mrhx-c7xc-m3w5` (CVE-2023-54404, HIGH — memory-exhaustion DoS in array validation; all zod 3.x affected) published 2026-10-01, surfaced by the new accepted-risk audit gate just before the push — fixed by upgrading zod 3.23 → **4.6.7** (zero code changes; typecheck/tests/build green on v4).
   - Result: **14 → 5 findings (2 critical → 0 critical)**.
 - **Status:** **PARTIAL** — remaining 5 are documented and accepted in §4.
 - **Residual detail:** see §4 (all build-time CSS tooling; only fixable via breaking majors).
@@ -181,12 +182,12 @@ A rigorous defensive security review was conducted across the codebase, covering
 
 ---
 
-### SEC-013: CI Security Gates Never Executed *(new, found during remediation)*
+### SEC-013: CI Security Gates Effectively Non-Gating *(new, found during remediation; refined at push time)*
 - **Severity:** **HIGH**
 - **Component:** `.github/workflows/{ci,security,daily-security}.yml`
-- **Evidence:** `ci.yml`/`security.yml` triggered on `main`/`develop` — branches that do not exist (default branch is `master`), so **no quality or security gate had ever run**. Trivy used a floating `@master` ref (trivy-action tags were recently targeted by a supply-chain attack) and had no `exit-code`, so critical findings still left the job green. Daily audit ran on EOL Node 20.
-- **Remediation applied:** triggers retargeted to `master`; Trivy pinned to immutable `v0.36.0` with `exit-code: '1'`; Vitest wired into `npm test` and CI; Node 20 (EOL April 2026) → 24; no `continue-on-error`/`|| true` anywhere.
-- **Status:** **FIXED** (workflows validated statically; they cannot execute until the repository is pushed to GitHub — see README Known Limitations).
+- **Evidence:** locally the working copy sat on a local-only `master` with no remote (so nothing could trigger from here), `develop` never existed anywhere, and Trivy used a floating `@master` ref (trivy-action tags were recently targeted by a supply-chain attack) with no `exit-code`, so critical findings still left the job green. **Verified via the GitHub API before pushing (2026-10-23):** on the public repo's actual `main` branch, the CI Quality Gate had run 3× and **failed 3/3** (missing ESLint config), the Security pipeline "passed" 3/3 only because Trivy was non-gating, and the daily audit failed 25/25 days on the open CVEs — i.e. the quality gate was red and the security gate was green for the wrong reasons.
+- **Remediation applied:** triggers settled on **`main`** (the verified default branch; local branch renamed before push) and phantom `develop` dropped; Trivy pinned to immutable `v0.36.0` with `exit-code: '1'`; accepted-risk entries tracked in `/.trivyignore` (shared with the new `scripts/audit-gate.mjs` that replaces raw `npm audit --audit-level=high` in the daily job); Vitest wired into `npm test` and CI; Node 20 (EOL April 2026) → 24; no `continue-on-error`/`|| true` anywhere.
+- **Status:** **FIXED** — proof is the post-push run history on `main`.
 
 ---
 
@@ -226,4 +227,4 @@ All performed on October 23, 2026 against the remediated tree:
 | Vitest security/unit suite | `npm run test:unit` | ✔ 30/30 (incl. 17 new guard/IDOR tests) |
 | Production build | `npm run build` | ✔ 23 routes |
 | Live smoke test | dev server: login → `/api/customers/CUST-001` → `/api/cases/CASE-2026-001` → all 8 pages | ✔ 200s; **0** `sync-dynamic-apis` / deprecation errors in log |
-| Dependency audit | `npm audit --omit=dev` / `npm audit` | 14 → 5 (2 critical → 0); residuals per §4 |
+| Dependency audit | `scripts/audit-gate.mjs` (accepted-risk aware) | PASS — 5 findings, only the documented postcss HIGH accepted; a newly published zod HIGH was caught and fixed (3 → 4.6.7) pre-push |

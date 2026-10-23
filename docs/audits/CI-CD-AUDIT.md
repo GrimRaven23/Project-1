@@ -22,7 +22,7 @@ The project repository includes 4 GitHub Actions workflow definitions in `.githu
 - **`daily-security.yml` fails** with exit code 1 because `npm audit --audit-level=high` detects 10 high/critical CVEs.
 - **`release.yml` fails** during `docker/build-push-action` because `Dockerfile` tries to copy `/app/public` which does not exist in the repository.
 
-**Critical additional finding (raised during remediation):** beyond failing when run, the gates **could never run at all** — `ci.yml` and `security.yml` triggered on `main`/`develop`, but the repository's only branch is `master`. No quality or security gate had ever executed on any push or PR. (See §3, status per workflow.)
+**Critical additional finding (raised during remediation, later refined):** the local working copy had been left on a local-only `master` branch with no remote, so locally nothing could trigger at all — while `develop` never existed on GitHub either. **Verified against the GitHub API during the pre-push check (2026-10-23):** the public repo's default branch is `main`, and gates *had* executed there — CI Quality Gate **failed 3/3 runs**, Security & SAST Pipeline **passed 3/3** (only because Trivy was non-gating), and the daily audit **failed 25/25 runs** since 2026-09-29. The corrected remediation therefore targets **`main`**, not `master`. (See §3.)
 
 ---
 
@@ -86,17 +86,17 @@ The project repository includes 4 GitHub Actions workflow definitions in `.githu
 
 | Workflow | Before | After | What Changed |
 | :--- | :---: | :---: | :--- |
-| `ci.yml` | ❌ never triggered / failing at lint | ✅ **fixed** | Triggers retargeted `main`/`develop` → **`master`**; `.eslintrc.json` committed; lint = `eslint . --max-warnings=0`; `npm test` runs **both** suites (26 custom + 30 Vitest) so the previously orphaned Vitest specs actually gate; build step retained; Node 20 (EOL) → 24 (`4ea8dc4`, `d788ba9`, `e661575`) |
-| `security.yml` | ❌ never triggered; Trivy floating `@master`, non-gating | ✅ **fixed** | Retargeted to `master`; Trivy pinned to immutable **`v0.36.0`** (supply-chain hardening) with **`exit-code: '1'`** so CRITICAL/HIGH findings fail the job; SARIF still uploaded with `if: always()` (`4ea8dc4`) |
-| `daily-security.yml` | ❌ failing on 16 CVEs; EOL Node 20 | ✅ **fixed** | Vulnerabilities reduced 14 → 5 (2 critical → 0) so `npm audit --audit-level=high` passes on the accepted-residual set; Node 20 → 24 (`e661575`). *Will fail loudly if a new runtime high/critical appears — intended behavior.* |
+| `ci.yml` | ❌ failing 3/3 on GitHub (missing ESLint) | ✅ **fixed** | Triggers settled on **`main`** (the verified GitHub default branch; the local-only `master` was renamed before pushing) and phantom `develop` dropped; `.eslintrc.json` committed; lint = `eslint . --max-warnings=0`; `npm test` runs **both** suites (26 custom + 30 Vitest) so the previously orphaned Vitest specs actually gate; build step retained; Node 20 (EOL) → 24 (`4ea8dc4`, `d788ba9`, `e661575`) |
+| `security.yml` | ⚠️ passing 3/3 but vacuous (Trivy floating `@master`, non-gating) | ✅ **fixed** | Trivy pinned to immutable **`v0.36.0`** (supply-chain hardening) with **`exit-code: '1'`** so CRITICAL/HIGH findings fail the job; accepted-risk entries live in tracked `/.trivyignore`; SARIF still uploaded with `if: always()` (`4ea8dc4`) |
+| `daily-security.yml` | ❌ failing 25/25 runs on GitHub (open CVEs) | ✅ **fixed** | Vulnerabilities reduced 14 → 5 (2 critical → 0), then a **new HIGH (zod GHSA-mrhx-c7xc-m3w5, CVE-2023-54404)** was caught by the new gate pre-push and fixed by upgrading zod 3 → 4.6.7. The job now runs `scripts/audit-gate.mjs`: fails on any unaccepted high/critical, tolerating only entries listed with rationale in tracked `/.trivyignore` (raw `npm audit --audit-level=high` cannot express accepted risk — it would fail forever on the documented postcss residual). Node 20 → 24 (`e661575`). |
 | `release.yml` | ❌ invalid Dockerfile | ✅ **fixed (statically)** | `public/` + `storage/` tracked, `.dockerignore` populated, builder `NODE_ENV` corrected, compose secrets externalised, Node 24 base (`7a75bc0`, `4ea8dc4`, `e661575`). *Not yet exercised — no tag pushed.* |
 
-**Verification:** all four workflows were validated statically (YAML structure, action versions, command availability) and every command they run was executed locally with green results. They cannot be observed executing until this repository is pushed to GitHub (the local clone has no remote configured).
+**Verification:** all four workflows were validated statically (YAML structure, action versions, command availability) and every command they run was executed locally with green results. The definitive proof is the post-push run: every workflow execution on `main` after the remediation push is observable via the Actions tab (pre-push history: 3 CI failures, 3 vacuous security passes, 25 daily-audit failures).
 
 ### Remaining CI/CD Gaps (tracked in `TECHNICAL-DEBT.md`)
 
 1. **No E2E stage** — the Playwright/Integration stages in the original pipeline diagram did not exist; `docs/CI-CD.md` was corrected accordingly (TD-P3-04).
 2. **No container image scan** — Trivy scans the filesystem; the release-built image is never scanned (TD-P2-05). Adding `scan-type: image` should precede any registry push.
 3. **Docker build not in PR CI** — Dockerfile regressions only surface on tag pushes (TD-P2-05).
-4. **SARIF upload requires GitHub Advanced Security on private repos** — `upload-sarif` may fail without it; if the repo stays private without GHAS, gate the upload step on `github.advanced_security.enabled` rather than weakening the scan itself.
-5. **Workflows have never actually executed** — first push to GitHub must confirm green, then badges become meaningful (TD-P3-09).
+4. **SARIF upload requires GitHub Advanced Security on private repos** — this repository is public, so code-scanning upload works for free; if it is ever made private without GHAS, gate the upload step on `github.advanced_security.enabled` rather than weakening the scan itself.
+5. **Post-push green confirmation** — the remediated workflows must be watched on their first execution after the push; badges activate then (TD-P3-09).

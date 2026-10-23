@@ -5,14 +5,18 @@
 
 ### 1. Multi-Stage Pipeline Overview
 
-Four GitHub Actions workflows run against the repository's default branch
-**`master`** (the original configuration targeted non-existent `main` /
-`develop` branches, so no gate had ever executed — see
-`docs/audits/CI-CD-AUDIT.md`):
+Four GitHub Actions workflows run against the repository's GitHub default
+branch **`main`**. (Correction from the original audit: the local working
+copy had been left on a local-only `master` branch with no remote, but the
+public repo's default branch is `main` — which the historical runs confirm.
+`develop` never existed. GitHub's run history shows the CI Quality Gate
+failed 3/3 times for a missing ESLint config, the Security pipeline passed
+only because Trivy was non-gating, and the daily audit failed 25/25 days on
+open CVEs. See `docs/audits/CI-CD-AUDIT.md` for the full record.)
 
 ```mermaid
 graph LR
-    Push[Push / PR to master] --> Lint[1. ESLint<br/>--max-warnings=0]
+    Push[Push / PR to main] --> Lint[1. ESLint<br/>--max-warnings=0]
     Push --> Typecheck[2. tsc --noEmit]
     Push --> Tests[3. Tests<br/>custom harness + Vitest]
     Push --> SecScan[4. Gitleaks · CodeQL · Trivy]
@@ -39,7 +43,7 @@ graph LR
 | Secrets | `security.yml` | `gitleaks/gitleaks-action@v2` | any leaked credential |
 | SAST | `security.yml` | `github/codeql-action` (javascript-typescript) | analysis errors; findings surface in the repo Security tab (upload does not block) |
 | Dependencies | `security.yml` | `aquasecurity/trivy-action@v0.36.0` (pinned) | **CRITICAL/HIGH findings** (`exit-code: '1'`), SARIF still uploaded |
-| Daily audit | `daily-security.yml` | `npm audit --audit-level=high` (04:00 UTC) | new high/critical advisories |
+| Daily audit | `daily-security.yml` | `node scripts/audit-gate.mjs` (04:00 UTC) | new high/critical advisories not listed in `/.trivyignore` (accepted-risk aware) |
 | Release | `release.yml` | Docker build (no push) + CycloneDX SBOM | build failure on `v*` tags |
 
 No workflow step uses `continue-on-error` or `|| true`.
@@ -54,7 +58,7 @@ No workflow step uses `continue-on-error` or `|| true`.
   (not) publishing. Add `scan-type: image` when a registry push is
   introduced.
 - **No Semgrep.** Only CodeQL performs SAST.
-- **Badges show no status** until this repository is pushed to GitHub — the
-  local clone has no remote configured.
+- **Badges were stale until the post-remediation push** — this working copy
+  had no remote configured (now pushed to `main`).
 - **Docker build is untested in CI.** `ci.yml` verifies `npm run build` on
   the host; the Dockerfile itself is only exercised by `release.yml` on tags.
