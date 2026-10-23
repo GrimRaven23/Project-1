@@ -180,10 +180,10 @@ const { JwtService } = jwtModule;
 
 const dummyUser = {
   id: "USR-COMM-01",
-  name: "Alexandre Martin",
-  email: "a.martin@telco-enterprise.fr",
+  name: "Commercial Agent (Demo)",
+  email: "commercial.demo@example.test",
   role: "COMMERCIAL_AGENT",
-  department: "B2B Sales"
+  department: "B2B Commercial Sales"
 };
 
 const token = JwtService.signToken(dummyUser);
