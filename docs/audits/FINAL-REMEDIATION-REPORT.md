@@ -92,7 +92,7 @@ The platform was inherited in a state where **every security gate could be walke
 **Conditions to lift the verdict:**
 1. **B1 (blocking):** implement persistent storage (TD-P2-01) with restore procedure; verify empty-state boot in production mode.
 2. **B2 (blocking):** push to GitHub; confirm all four workflows green on `main`; enable branch protection on the quality gate. *(Status: **pushed and green** — CI Quality Gate ✅, Security & SAST ✅, Daily Audit ✅ by manual dispatch, all on `main` 2026-10-23; see §6. Branch protection still to be enabled.)*
-3. **B3 (recommended before real users):** move rate limiting/session revocation to shared storage, add CSP + HSTS, wire Docker build + image scan into CI, and complete at least one E2E pass over the Customer → Case → Qualification → Offer flow.
+3. **B3 (recommended before real users):** move rate limiting/session revocation to shared storage, add CSP + HSTS, add an **image** scan (Trivy currently scans the lockfile, not the built image), and complete at least one E2E pass over the Customer → Case → Qualification → Offer flow. *(Docker build in CI, previously listed here, was completed 2026-10-23.)*
 
 ---
 
@@ -141,5 +141,39 @@ than the one originally documented as accepted.
   should be watched once to confirm.
 - **Remaining B2 item:** branch protection is not enabled on `main` (requires
   a UI/API step with admin scope that this environment did not exercise).
+
+---
+
+## 7. Deployment (v1.0.0 release, 2026-10-23)
+
+The repository's only CD path is `release.yml`, triggered by a `v*` tag: it
+builds the production Docker image, generates a CycloneDX SBOM, and publishes
+a GitHub Release. There are no hosting credentials (no Vercel/cloud account) in
+this environment, so "deploy" resolves to **producing a verified release
+artifact**, not to provisioning a running host.
+
+**Published:** https://github.com/GrimRaven23/Project-1/releases/tag/v1.0.0
+— tag on `8a6fc7c`, release run green, `bom.json` attached (42 components,
+37 KB).
+
+### 7.1 The release pipeline caught two defects that nothing else could
+
+Both were invisible to typecheck/lint/test/build, which had all been green —
+they only surfaced by actually executing the release end-to-end. This is the
+concrete payoff of running the pipeline rather than assuming it works.
+
+| # | Defect | Why it escaped every other gate | Fix |
+|---|---|---|---|
+| 1 | **Docker image had never built successfully.** The builder stage set `ENV NODE_ENV=development` to force devDependency install; `next build` then ran under a non-standard NODE_ENV, duplicating React's runtime resolution and crashing prerender of `/404` (`useContext` of null → misreported as `<Html> should not be imported outside of pages/_document`). | The audit had already flagged "Docker build untested in CI" — `ci.yml` only ran `npm run build` on the host. Reproduced locally via `NODE_ENV=development npm run build`. | `npm ci --include=dev` with NODE_ENV left unset; dead `deps` stage removed; **new `Docker Image Build` job added to `ci.yml`** so every push verifies the image. |
+| 2 | **The release published a hollow SBOM.** `bom.json` was 774 bytes with **0 components** — a structurally *valid* CycloneDX document, so no consumer or step would ever fail on it. | `CycloneDX/gh-node-module-generatebom` shells out to `npm ls`, which reads the *installed* tree; the workflow had no install step. Reproduced locally: 0 components without `node_modules`, 395 with. | `setup-node` + `npm ci` before generation, **plus an explicit `Verify SBOM is not empty` step** that fails the release on a zero count — so this failure mode cannot recur silently. |
+
+### 7.2 What is *not* deployed
+
+- **No running host.** No cloud/Vercel credentials exist here; the artifact is
+  a container image built and verified in CI but not pushed to a registry
+  (`release.yml` builds with `push: false`). Publishing to GHCR or a cloud
+  target is a follow-up requiring credentials.
+- Verdict conditions **B1** (persistence) and **B3** (hardening) remain open as
+  stated in §5; the platform is still not approved as a system of record.
 
 **Signed off:** audit → repair → re-verification completed October 23, 2026. Companion evidence: `REMEDIATION-LOG.md` (commit-mapped journal), `SECURITY-AUDIT.md` §5 (verification record), `CURRENT-STATE-AUDIT.md` §5 (re-assessment).

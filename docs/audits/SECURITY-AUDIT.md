@@ -149,7 +149,7 @@ A rigorous defensive security review was conducted across the codebase, covering
 - **Severity:** **MEDIUM** (CVSS 5.0 - Availability & Release Automation Failure)
 - **Component:** `docker/Dockerfile`
 - **Remediation applied:** `public/` (robots.txt) and `storage/uploads/.gitkeep` tracked; `.dockerignore` populated (was **empty** — `COPY . .` previously shipped `.git`, `node_modules`, `.next`, and any local `.env` into builder layers); builder stage no longer inherits `NODE_ENV=production` (which made `npm ci` skip devDependencies and broke `next build`); runner now copies `scripts/` and `storage/` with correct ownership.
-- **Status:** **FIXED** — files present and Dockerfile corrected (image build itself only exercised by `release.yml` on tags — see `docs/audits/CI-CD-AUDIT.md` gap list).
+- **Status:** **FIXED** — files present and Dockerfile corrected; the image build is now verified by a dedicated `Docker Image Build` job in `ci.yml` on every push (added 2026-10-23 after the first release build exposed a builder-stage `NODE_ENV` defect — see `docs/audits/FINAL-REMEDIATION-REPORT.md` §7.1).
 
 ---
 

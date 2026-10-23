@@ -28,7 +28,7 @@ Technical debt is categorized strictly by engineering impact and operational ris
 3. **TD-P0-03: Hardcoded Cryptographic Key Fallback** ✅ **CLEARED** — `99a132b`
    - *Fix applied:* production hard-fails when `JWT_SECRET` missing or <32 chars; dev-only fallback key otherwise.
 4. **TD-P0-04: Broken Dockerfile Build** ✅ **CLEARED** — `7a75bc0` + `4ea8dc4`
-   - *Fix applied:* `public/` + `storage/` tracked; `.dockerignore` populated; builder `NODE_ENV` corrected. *(Docker build still only exercised on tag pushes — see TD-P2-05.)*
+   - *Fix applied:* `public/` + `storage/` tracked; `.dockerignore` populated; builder `NODE_ENV` corrected. *(Correction: the `NODE_ENV` fix was incomplete and the first release build proved it — fully corrected 2026-10-23, REM-036. Docker build is now verified in `ci.yml` on every push — see TD-P2-05.)*
 
 ### Priority P1 — Short Term
 1. **TD-P1-01: Missing Customer & Site Creation Capability** ✅ **CLEARED** — `2f15553` + `99a132b` + `9ca119b`
@@ -53,9 +53,9 @@ Technical debt is categorized strictly by engineering impact and operational ris
 4. **TD-P2-04: Build-time dependency advisories (tailwind 3 chain)** ⏳ **OPEN** — `e661575`, superseded `2026-10-23`
    - *Status:* **3 MODERATE** findings remain (`tailwindcss`, `postcss-nested`, `postcss-selector-parser`). The postcss **HIGH** that was previously accepted in this entry was **eliminated** (not accepted) on 2026-10-23 by an npm `overrides` entry forcing `postcss@^8.5.31` over the vulnerable `8.4.31` nested copy pinned by `next@15.5.28` — the earlier "only fixable via breaking major" claim was wrong.
    - *Rationale for the remainder:* all build-time CSS tooling over developer-authored input; never processes request data; **below the high/critical gate threshold**. A tailwind 4 migration would clear them. Full justification: `SECURITY-AUDIT.md` §4.2. Re-evaluated daily by `daily-security.yml`.
-5. **TD-P2-05: Docker image build not verified in the PR CI** ⏳ **OPEN**
-   - *Impact:* Dockerfile regressions surface only when a release tag is pushed.
-   - *Fix path:* add a `docker build` (or hadolint + build) job to `ci.yml`; add Trivy *image* scan before any registry push.
+5. **TD-P2-05: Docker image build not verified in the PR CI** ⏳ **PARTIALLY CLOSED** (2026-10-23)
+   - *Update:* the build half is **done** — a `Docker Image Build` job now runs in `ci.yml` on every push (build only, no registry push, no secrets). It was added *because* the gap bit for real: the first `v1.0.0` release build failed on a builder-stage `NODE_ENV=development` defect (REM-036) that no other gate could catch.
+   - *Still open:* Trivy scans the **filesystem/lockfile**, never the **built image**. *Fix path:* add a `scan-type: image` step before any registry push.
 
 ### Priority P3 / P4 — Optional
 1. **TD-P3-01: Real-time Notification Engine** ⏳ **OPEN** — still a simulated badge; add SSE/polling endpoint when persistence exists.

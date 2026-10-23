@@ -53,6 +53,8 @@ This journal records all systematic repairs, architectural fixes, security patch
 | **REM-029** | P1 | EOL runtime: Node 20 (EOL April 2026) → Node 24 LTS in CI, daily audit workflow, and Docker base/runner images | `.github/workflows/*`, `docker/Dockerfile` | **DONE** — `e661575` |
 | **REM-030** | P1 | Documentation truth pass: README (version badge 0.1.0→1.0.0, Postgres/Redis claims removed, real demo credentials, Known Limitations section), `.env.example` reduced to the 3 env vars actually read, `docs/CI-CD.md` + `docs/SECURITY.md` stripped of phantom Playwright/Semgrep/Prometheus/Redis-blacklist claims | `README.md`, `.env.example`, `docs/CI-CD.md`, `docs/SECURITY.md` | **DONE** — `d7060cf` |
 | **REM-033** | P0 | **New HIGH advisory caught by the new audit gate before push:** zod `GHSA-mrhx-c7xc-m3w5` (CVE-2023-54404, memory-exhaustion DoS; all zod 3.x affected) → upgrade zod 3.23 → 4.6.7 (zero code changes; typecheck/tests/build green on v4) | `package.json`, `package-lock.json` | **DONE — this batch** |
+| **REM-036** | P1 | **Docker image had never been built by CI** (the gap flagged in `CI-CD-AUDIT`), so the first release tag was the first-ever image build — and it failed: builder stage set `ENV NODE_ENV=development` to force devDependency install, which is not how npm decides, and left `next build` under a non-standard NODE_ENV → duplicated React resolution → prerender crash on `/404` (`useContext` null + `<Html> should not be imported`). Reproduced locally with `NODE_ENV=development npm run build`. Fixed with `npm ci --include=dev` + unset NODE_ENV; removed the dead `deps` stage (no `COPY --from=deps`). **Closed the gap:** added a `Docker Image Build` job to `ci.yml` (no push, no secrets) | `docker/Dockerfile`, `.github/workflows/ci.yml` | **DONE** — `31df6c2`; image build green in CI |
+| **REM-037** | P1 | **Release published a hollow SBOM.** `bom.json` was 774 bytes / **0 components** — a structurally valid CycloneDX document, so nothing downstream failed. Root cause: `CycloneDX/gh-node-module-generatebom` shells out to `npm ls`, which reads the *installed* tree, but the workflow had no install step. Reproduced locally: 0 components without `node_modules`, 395 with. Fixed by adding `setup-node` + `npm ci` before generation, **plus an explicit "Verify SBOM is not empty" assertion** so the failure mode can never recur silently | `.github/workflows/release.yml` | **DONE** — `8a6fc7c`; SBOM now 42 components / 37 KB, assertion verified live |
 | **REM-035** | P0 | **First live gated Trivy run failed while `npm audit` passed — two discoveries.** (a) The accepted-risk list was scanner-specific: Trivy reports **CVE** ids, the list carried **GHSA** ids, and they do not map 1:1, so the accepted postcss GHSAs matched none of the CVEs Trivy raised (SEC-015). (b) More importantly, the accepted-risk *premise* was wrong: the postcss HIGH is fixable **within major 8** — `next@15.5.28` merely exact-pins a nested `postcss@8.4.31` alongside an already-patched root `8.5.31`. Added `overrides: { postcss: "^8.5.31" }`, collapsing the vulnerable copy into the patched one → **3 findings, 0 critical, 0 high, 0 accepted**; `.trivyignore` emptied of advisory ids | `package.json`, `package-lock.json`, `.trivyignore` | **DONE — this batch** (typecheck/lint/test/build/gate all re-verified green) |
 | **REM-034** | P1 | Replace raw `npm audit --audit-level=high` (cannot express accepted risk; failed 25/25 days) with `scripts/audit-gate.mjs` — gates on unaccepted high/critical only, tolerating entries documented in tracked `/.trivyignore` (shared with Trivy, so both security gates agree); wire into `daily-security.yml` | `scripts/audit-gate.mjs`, `.trivyignore`, `.github/workflows/daily-security.yml` | **DONE — this batch** (verified: PASS locally) |
 | **REM-031** | P2 | Refresh all audit deliverables with post-remediation status; write FINAL-REMEDIATION-REPORT; correct `docs/THREAT-MODEL.md` aspirational claims | `docs/audits/*`, `docs/THREAT-MODEL.md` | **DONE — this entry** |
@@ -81,15 +83,19 @@ This journal records all systematic repairs, architectural fixes, security patch
 | `bde2b55` | docs(audits): CI-history narrative corrected from GitHub API evidence; REM-032…034 |
 | `31d71c7` | fix(deps): postcss advisories **eliminated** via `overrides` (REM-035) |
 | `ea7926d` | docs(audits): postcss elimination + GHSA/CVE id-mismatch recorded; report §6 |
+| `45627d7` | docs(audits): post-push CI results recorded (all three workflows green) |
+| `31df6c2` | fix(docker): builder-stage `NODE_ENV` broke `next build`; Docker build added to CI (REM-036) |
+| `8a6fc7c` | fix(release): SBOM was empty — `npm ci` before generation + non-empty assertion (REM-037) |
 
-**Push & CI record** — 18 commits fast-forwarded to `origin/main`
-(`bdd3f9d` → `ea7926d`), pushed 2026-10-23. Observed on the runner:
+**Push & CI record** — 22 commits fast-forwarded to `origin/main`
+(`bdd3f9d` → `8a6fc7c`), pushed 2026-10-23. Observed on the runner:
 
 | Workflow | Pre-remediation | Post-push |
 |---|---|---|
 | CI Quality Gate | failed 3/3 | ✅ success (runs 40029356888, 40030591763) |
 | Security & SAST Pipeline | passed 3/3 vacuously | ❌ failed as designed → ✅ success (40029356894 → 40030591787) |
 | Daily Automated Security Audit | failed 25/25 | ✅ success by manual dispatch (40031099453) |
+| Production Release & SBOM (`v1.0.0`) | never run | ❌ failed (Docker `NODE_ENV`, REM-036) → ❌ failed (hollow SBOM, REM-037) → ✅ success (40033205715; SBOM 42 components) |
 
 ---
 

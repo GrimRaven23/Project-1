@@ -60,5 +60,9 @@ No workflow step uses `continue-on-error` or `|| true`.
 - **No Semgrep.** Only CodeQL performs SAST.
 - **Badges were stale until the post-remediation push** — this working copy
   had no remote configured (now pushed to `main`).
-- **Docker build is untested in CI.** `ci.yml` verifies `npm run build` on
-  the host; the Dockerfile itself is only exercised by `release.yml` on tags.
+- **Docker build in CI — closed 2026-10-23.** `ci.yml` now has a dedicated
+  `Docker Image Build` job (build, no push, no secrets) that verifies the
+  Dockerfile on every push. This was added after the first release build
+  failed on a builder-stage `NODE_ENV` defect that no other gate could catch
+  (`docs/audits/FINAL-REMEDIATION-REPORT.md` §7.1). **Image *scanning*** is
+  still only partial: Trivy scans the filesystem/lockfile, not the built image.
