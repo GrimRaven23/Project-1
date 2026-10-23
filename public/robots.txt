@@ -1,0 +1,7 @@
+# TelcoQualify Enterprise robots.txt
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Disallow: /audit/
+Allow: /login
+Allow: /
