@@ -47,3 +47,30 @@ jobs:
 
       - name: Production Bundle Verification
         run: npm run build
+
+  # Added 2026-10-23: the Dockerfile had NEVER been exercised by CI, so a
+  # builder-stage `ENV NODE_ENV=development` slipped through and only surfaced
+  # when the first release tag tried to build the image (it broke prerendering
+  # of /404). Building the image on every push closes that gap. No registry
+  # push and no secrets are involved — this is a pure build verification.
+  docker-build:
+    name: Docker Image Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: false
+          tags: telcoqualify:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

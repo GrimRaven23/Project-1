@@ -4,25 +4,23 @@ FROM node:24-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
-# Dependency installation stage
-FROM base AS deps
-WORKDIR /app
-# devDependencies are omitted only here; the builder below needs them.
-ENV NODE_ENV=production
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
-
-# Build stage
+# Dependency installation + build stage
 FROM base AS builder
 WORKDIR /app
-# SECURITY/CORRECTNESS: the base image used to set NODE_ENV=production for the
-# whole build, which makes `npm ci` skip devDependencies (typescript, eslint,
-# tailwind) and break `next build`. Build with the default environment and let
-# Next.js choose production output itself.
-ENV NODE_ENV=development
+# SECURITY/CORRECTNESS (fixed 2026-10-23, caught by the first release build):
+# this stage previously set `ENV NODE_ENV=development` so that `npm ci` would
+# install devDependencies. That is not how npm decides, and it broke the build:
+# `next build` ran under a non-standard NODE_ENV, which duplicated React's
+# runtime resolution and crashed prerendering the built-in /404 with
+# "TypeError: Cannot read properties of null (reading 'useContext')" and
+# "<Html> should not be imported outside of pages/_document".
+# The correct lever is `npm ci --include=dev`, leaving NODE_ENV unset so
+# `next build` sets production itself.
+# The separate `deps` stage that ran `npm ci --omit=dev` was also removed: no
+# `COPY --from=deps` ever referenced it, so it was pure build-time waste.
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --include=dev
 COPY . .
 RUN npm run build
 
