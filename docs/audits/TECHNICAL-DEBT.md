@@ -50,8 +50,9 @@ Technical debt is categorized strictly by engineering impact and operational ris
 3. **TD-P2-03: Document Upload Storage Stub** ⏳ **OPEN**
    - *Impact:* uploaded bytes are not persisted; no magic-byte validation; `PENDING_SCAN` never resolved (no scanner).
    - *Fix path:* write to `storage/uploads` with randomised names + magic-byte sniffing + a real or scanned pipeline integration. Uploads already get honest `PENDING_SCAN` status and sanitized filenames.
-4. **TD-P2-04: Build-time dependency advisories (postcss-via-next, tailwind 3 chain)** 📄 **DOCUMENTED** — `e661575`
-   - *Rationale:* 5 findings (1 high/4 moderate), all build-time CSS tooling over developer-authored input; only fixable via breaking majors (`next@16`, `tailwindcss@4`). Full justification: `SECURITY-AUDIT.md` §4. Re-evaluated daily by `daily-security.yml`.
+4. **TD-P2-04: Build-time dependency advisories (tailwind 3 chain)** ⏳ **OPEN** — `e661575`, superseded `2026-10-23`
+   - *Status:* **3 MODERATE** findings remain (`tailwindcss`, `postcss-nested`, `postcss-selector-parser`). The postcss **HIGH** that was previously accepted in this entry was **eliminated** (not accepted) on 2026-10-23 by an npm `overrides` entry forcing `postcss@^8.5.31` over the vulnerable `8.4.31` nested copy pinned by `next@15.5.28` — the earlier "only fixable via breaking major" claim was wrong.
+   - *Rationale for the remainder:* all build-time CSS tooling over developer-authored input; never processes request data; **below the high/critical gate threshold**. A tailwind 4 migration would clear them. Full justification: `SECURITY-AUDIT.md` §4.2. Re-evaluated daily by `daily-security.yml`.
 5. **TD-P2-05: Docker image build not verified in the PR CI** ⏳ **OPEN**
    - *Impact:* Dockerfile regressions surface only when a release tag is pushed.
    - *Fix path:* add a `docker build` (or hadolint + build) job to `ci.yml`; add Trivy *image* scan before any registry push.

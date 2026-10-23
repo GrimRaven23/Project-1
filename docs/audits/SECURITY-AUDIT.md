@@ -20,8 +20,8 @@ A rigorous defensive security review was conducted across the codebase, covering
 
 ### Post-Remediation Summary (re-verified October 23, 2026):
 - **Fixed & verified:** 9 of 10 (SEC-001 … SEC-007, SEC-009, SEC-010)
-- **Partially fixed, residual accepted:** 1 (SEC-008 — 5 build-time advisories remain; see §4)
-- **New findings raised during remediation:** 4 (SEC-011 … SEC-014); 3 fixed, 1 accepted
+- **Partially fixed, residual accepted:** 0 (SEC-008 — the last HIGH was later *eliminated* by a `postcss` override; only 3 moderates remain, below the gate threshold — see §4)
+- **New findings raised during remediation:** 5 (SEC-011 … SEC-015); 4 fixed, 1 accepted
 - **Verification evidence:** `npm run typecheck` ✔, `npm run lint` (zero warnings) ✔, `npm run test` (26 custom + 30 Vitest) ✔, `npm run build` (23 routes) ✔, live dev-server smoke test (login → API → all pages, 0 deprecation errors) ✔
 
 ---
@@ -37,7 +37,7 @@ A rigorous defensive security review was conducted across the codebase, covering
 | **SEC-005** | **HIGH** | Client-Side Direct Memory DB Import Bypassing Server-Side RBAC | Client components | **FIXED** — `9ca119b` |
 | **SEC-006** | **MEDIUM** | JWT Token Stored in Insecure Browser LocalStorage | `src/lib/auth/auth-context.tsx` | **FIXED** — `c98f03b` |
 | **SEC-007** | **HIGH** | Missing ESLint Configuration Halting Automated SAST in CI Gate | `.eslintrc.json` / `package.json` | **FIXED** — `7a75bc0` |
-| **SEC-008** | **HIGH** | Unpatched Vulnerabilities in Next.js, PostCSS, and Dependencies | `package.json`, `package-lock.json` | **PARTIAL** — 9 of 14 advisories cleared (`e661575`); 5 residual accepted (§4) |
+| **SEC-008** | **HIGH** | Unpatched Vulnerabilities in Next.js, PostCSS, and Dependencies | `package.json`, `package-lock.json` | **FIXED** — 9 of 14 advisories cleared (`e661575`); zod HIGH caught & fixed (`0a5b163`); last postcss HIGH **eliminated** via `overrides` (`this batch`). 3 moderates remain, below the gate threshold (§4) |
 | **SEC-009** | **MEDIUM** | Dockerfile Build Failure on Missing Public/Storage Directories | `docker/Dockerfile` | **FIXED** — `7a75bc0`/`4ea8dc4` |
 | **SEC-010** | **LOW** | Static Plaintext Credentials Committed in Docker Compose | `docker/docker-compose.yml` | **FIXED** — `4ea8dc4` |
 | **SEC-011** | **HIGH** *(new)* | IDOR: Expert-Request Assignment Widened Case Read Access to Any Role | `src/core/security/api-guard.ts` | **FIXED** — `99a132b` (caught by new test suite) |
@@ -140,8 +140,8 @@ A rigorous defensive security review was conducted across the codebase, covering
   - Unused `uuid` dependency removed.
   - **New advisory caught by the remediation gate:** zod `GHSA-mrhx-c7xc-m3w5` (CVE-2023-54404, HIGH — memory-exhaustion DoS in array validation; all zod 3.x affected) published 2026-10-01, surfaced by the new accepted-risk audit gate just before the push — fixed by upgrading zod 3.23 → **4.6.7** (zero code changes; typecheck/tests/build green on v4).
   - Result: **14 → 5 findings (2 critical → 0 critical)**.
-- **Status:** **PARTIAL** — remaining 5 are documented and accepted in §4.
-- **Residual detail:** see §4 (all build-time CSS tooling; only fixable via breaking majors).
+  - **Then eliminated outright (2026-10-23):** the first live Trivy run proved the residual postcss HIGH was fixable within major 8, so an npm `overrides` entry forced `postcss@^8.5.31`, collapsing the vulnerable nested `8.4.31` (pinned by `next`) into the patched root copy → **3 findings, 0 high, 0 critical**.
+- **Status:** **FIXED** — zero high/critical remain; only 3 moderates (tailwind 3 chain, below the gate threshold) — see §4.
 
 ---
 
@@ -199,19 +199,74 @@ A rigorous defensive security review was conducted across the codebase, covering
 - **Decision:** **accepted for this stage** — the platform is a single-process application with no scaling deployment. Documented in README Known Limitations and `docs/SECURITY.md` (rotation is the documented kill switch).
 - **Status:** **ACCEPTED (documented)** — revisit before any horizontal scaling.
 
+### SEC-015: Accepted-Risk List Was Scanner-Specific and Would Not Have Suppressed Findings *(new, found by the first live gated run)*
+- **Severity:** **MEDIUM**
+- **Component:** `.trivyignore`, `scripts/audit-gate.mjs`, `.github/workflows/security.yml`
+- **Evidence:** the first post-push Security run failed on Trivy while `npm audit` passed on the same tree. Trivy reports vulnerabilities by **CVE** id; the accepted-risk list carried **GHSA** ids from `npm audit`; the two id spaces do not map 1:1, so the four accepted postcss GHSAs matched none of the four CVEs Trivy actually raised (CVE-2026-73646, CVE-2026-45623, CVE-2026-41305, CVE-2026-69153). The accepted list would have been silently ineffective against the gate it was written for.
+- **Root cause exploited to fix properly:** the failure forced a re-examination that proved the accepted-risk premise itself was wrong — the postcss advisories were fixable within major 8 via an `overrides` entry (§4.1), so no acceptance was needed at all.
+- **Remediation applied:** `postcss` override eliminates the advisories; `/.trivyignore` emptied of advisory ids; §4.3 documents that any future accepted advisory must list **both** its GHSA and CVE ids.
+- **Status:** **FIXED**
+
 ---
 
-## 4. Accepted Residual Risk (SEC-008 remainder)
+## 4. Accepted Residual Risk
 
-`npm audit` after remediation reports **5 findings (1 high, 4 moderate)**, all in the build-time CSS toolchain:
+**There are currently ZERO accepted high/critical advisories.** This section
+exists to record how that changed, and to be the rationale of record should a
+future advisory have to be accepted.
+
+### 4.1 The postcss HIGH — eliminated, not accepted (2026-10-23)
+
+The first remediation batch had accepted 4 postcss advisories (1 HIGH + the
+`next`-carrier line) on the stated grounds that "only `next@16` fixes them".
+**That reasoning was wrong and was overturned by the first live security run.**
+
+- The advisory **Trivy** reports on the runner (CVE-2026-73646, CVE-2026-45623,
+  CVE-2026-41305, CVE-2026-69153) maps to a `postcss` **minimum fixed version
+  of 8.5.x — a semver-compatible minor within the same major 8**. No breaking
+  major was ever required.
+- The vulnerable copy was not "bundled inside" `next` in an unfixable way: it
+  was an **exact-pinned nested dependency** (`next@15.5.28` → `postcss@8.4.31`)
+  sitting alongside an already-patched root `postcss@8.5.31` used by
+  tailwindcss/autoprefixer/vite.
+- Fixed with a **one-line npm `overrides` entry** forcing `postcss@^8.5.31`,
+  plus aligning the direct devDependency spec to the same range. The nested
+  vulnerable copy collapsed into the single patched root copy.
+
+**Result: `npm audit` 5 findings (1 high, 4 moderate) → 3 findings (0 high,
+3 moderate).** Zero critical, zero high, zero accepted. The build, typecheck and
+all 56 tests were re-verified green on the overridden tree.
+
+### 4.2 Remaining moderate findings (not accepted — below the gate threshold)
+
+`npm audit` reports **3 MODERATE** advisories, all in the build-time CSS
+toolchain. These are *not* recorded as accepted risk; they simply do not meet
+the high/critical bar that either security gate fails on:
 
 | Package | Severity | Why it remains | Justification |
 |---|---|---|---|
-| `postcss` (bundled inside `next`) | HIGH | Only fixed by `next@16` (breaking major) | Runs at build time over **developer-authored** CSS; the advisories (XSS via `</style>` in stringified CSS, `sourceMappingURL` file disclosure) require attacker control of build inputs, which does not exist here. DoS/file-read cannot be reached from HTTP traffic. |
-| `next` (carrier of the bundled postcss) | MODERATE | same | same |
-| `tailwindcss` 3.4.19 → via `postcss-nested` / `postcss-selector-parser` | MODERATE ×3 | All of tailwind 3.x is affected; only fixed by `tailwind@4` (breaking config migration) | Build-time selector parsing (CPU-complexity advisory) over developer-authored utilities; never processes request data. |
+| `tailwindcss` 3.4.19 | MODERATE | Only fixed by `tailwind@4` (breaking config migration) | Build-time utility generation over developer-authored config; never processes request data. |
+| `postcss-nested` | MODERATE | Same tailwind 3.x chain | Same. |
+| `postcss-selector-parser` | MODERATE | Same tailwind 3.x chain | Same. |
 
-**Decision:** accepted, documented, and re-evaluated by the daily `npm audit --audit-level=high` workflow (which will keep failing loudly if a *runtime* high/critical appears). A tailwind 4 migration is tracked as P2 debt in `TECHNICAL-DEBT.md`.
+**Decision:** not accepted (moderate is below the documented gate threshold);
+re-evaluated daily by `daily-security.yml`. A tailwind 4 migration is tracked
+as P2 debt in `TECHNICAL-DEBT.md` (TD-P2-04).
+
+### 4.3 Mechanism for any future acceptance
+
+Accepted advisories live in the tracked **`/.trivyignore`** — the single shared
+list consumed by *both* the Trivy scan (`security.yml`) and
+`scripts/audit-gate.mjs` (`daily-security.yml`), so the two gates can never
+disagree. The file currently carries **no advisory IDs**. Any entry added must
+cite this section and its rationale. A high/critical advisory *not* in the file
+fails both gates.
+
+> **Trivy/npm-audit ID mismatch note:** npm audit reports by **GHSA** id, Trivy
+> reports by **CVE** id, and the mapping is not 1:1 — the earlier accepted
+> postcss GHSAs did not match the CVEs Trivy actually raised, so the accepted
+> list would not have suppressed them anyway. Listing **both** the GHSA and CVE
+> ids for any future accepted advisory is therefore mandatory.
 
 ---
 
@@ -227,4 +282,4 @@ All performed on October 23, 2026 against the remediated tree:
 | Vitest security/unit suite | `npm run test:unit` | ✔ 30/30 (incl. 17 new guard/IDOR tests) |
 | Production build | `npm run build` | ✔ 23 routes |
 | Live smoke test | dev server: login → `/api/customers/CUST-001` → `/api/cases/CASE-2026-001` → all 8 pages | ✔ 200s; **0** `sync-dynamic-apis` / deprecation errors in log |
-| Dependency audit | `scripts/audit-gate.mjs` (accepted-risk aware) | PASS — 5 findings, only the documented postcss HIGH accepted; a newly published zod HIGH was caught and fixed (3 → 4.6.7) pre-push |
+| Dependency audit | `scripts/audit-gate.mjs` (accepted-risk aware) | PASS — **3 findings, 0 critical, 0 high**; zero accepted advisories (`/.trivyignore` empty). zod HIGH (CVE-2023-54404) and the postcss HIGH both caught by the gates and eliminated pre-push |

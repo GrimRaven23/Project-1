@@ -18,7 +18,7 @@ The platform was inherited in a state where **every security gate could be walke
 | Metric | Before | After |
 |---|---:|---:|
 | Critical security findings (audit register) | 2 (+1 discovered in repair) | **0 open** (13 of 14 fixed; 1 residual documented) |
-| `npm audit` total / critical | 16 → (14 at remeasure) / 3 | **5 / 0** (build-time CSS only, accepted & documented) |
+| `npm audit` total / critical / high | 16 → (14 at remeasure) / 3 | **3 / 0 / 0** (moderate only, tailwind 3 chain; zero accepted) |
 | API routes with authn/authz/IDOR/validation | partial, bypassable | **all** (guard + RBAC + 404-scoping + zod whitelist) |
 | Client pages using server API | 0 (direct in-process imports) | **all** (cookie-based REST client) |
 | Automated tests | 26 custom (runner half-wired) | **26 custom + 30 Vitest**, both in `npm test` and CI |
@@ -57,7 +57,7 @@ The platform was inherited in a state where **every security gate could be walke
 | Vitest (standalone) | `npx vitest run` | ✔ 4 files, 30/30 — incl. 17 new security/IDOR tests |
 | Production build | `npm run build` | ✔ 23 routes, exit 0 |
 | Live smoke | dev server under Next 15.5.28 | ✔ health 200; login 200; `/api/customers/CUST-001` 200; `/api/cases/CASE-2026-001` 200; all 8 pages 200; **0** `sync-dynamic-apis`/deprecation errors |
-| Dependency audit | `scripts/audit-gate.mjs` (accepted-risk aware) | 14 → 5 findings (2 critical → 0); a newly published zod HIGH was caught and fixed (→ 4.6.7); only documented postcss/tailwind build-time residuals accepted per §4 |
+| Dependency audit | `scripts/audit-gate.mjs` (accepted-risk aware) | 14 → 3 findings (**2 critical → 0, high → 0**); zod HIGH and the postcss HIGH were both caught by the gates and **eliminated** (zod → 4.6.7; postcss via `overrides` → ^8.5.31); zero accepted advisories |
 | Negative testing | both harnesses verified to exit 1 on failure | ✔ (no false-green path) |
 
 ---
@@ -74,7 +74,7 @@ The platform was inherited in a state where **every security gate could be walke
 | 6 | No E2E layer; Docker build not in PR CI; no Trivy *image* scan | Medium | TD-P3-04, TD-P2-05 |
 | 7 | Catalog admin UI, asset inventory editor, admin user lifecycle, notifications, exports — absent | Low (feature scope) | TD-P3-01/02/05/06/07 |
 | 8 | a11y hardening (ARIA, keyboard traps, contrast) | Low–Medium | TD-P3-03 |
-| 9 | 5 accepted build-time dependency advisories (postcss-via-next, tailwind 3 chain) | Low (documented rationale) | `SECURITY-AUDIT.md` §4 |
+| 9 | ~~5 accepted build-time dependency advisories~~ **Resolved:** postcss HIGH *eliminated* via `overrides`; 3 moderates (tailwind 3 chain) remain below the gate threshold | Low | `SECURITY-AUDIT.md` §4 |
 
 ---
 

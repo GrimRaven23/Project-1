@@ -60,5 +60,5 @@ Anything **below** the ApiGuard line is unreachable without passing authenticati
 | **No CSP / no app-level HSTS** — only X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy are set | XSS blast-radius not constrained by CSP; HSTS depends on the reverse proxy | TD-P3-08 |
 | **No global request throttling** beyond login | Volumetric DoS must be absorbed by proxy/infrastructure | deployment-owned |
 | **Uploads not scanned or persisted** | Malicious file never actually stored (metadata only), but no scanner exists for when persistence lands | TD-P2-03 |
-| **Build-time dependency advisories** (postcss-via-next, tailwind 3 chain) | Developer-workstation/build compromise, not runtime HTTP exposure | `SECURITY-AUDIT.md` §4, TD-P2-04 |
+| **Build-time dependency advisories** (tailwind 3 chain) | Developer-workstation/build compromise, not runtime HTTP exposure | `SECURITY-AUDIT.md` §4.2, TD-P2-04 |
 | **CI ran red/green for the wrong reasons on GitHub** | Verified run history: quality gate failed 3/3, security "passed" vacuously, daily audit failed 25/25 — repaired pre-push; must be confirmed green post-push | TD-P3-09 |

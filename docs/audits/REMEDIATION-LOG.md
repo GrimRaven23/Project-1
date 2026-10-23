@@ -53,7 +53,8 @@ This journal records all systematic repairs, architectural fixes, security patch
 | **REM-029** | P1 | EOL runtime: Node 20 (EOL April 2026) → Node 24 LTS in CI, daily audit workflow, and Docker base/runner images | `.github/workflows/*`, `docker/Dockerfile` | **DONE** — `e661575` |
 | **REM-030** | P1 | Documentation truth pass: README (version badge 0.1.0→1.0.0, Postgres/Redis claims removed, real demo credentials, Known Limitations section), `.env.example` reduced to the 3 env vars actually read, `docs/CI-CD.md` + `docs/SECURITY.md` stripped of phantom Playwright/Semgrep/Prometheus/Redis-blacklist claims | `README.md`, `.env.example`, `docs/CI-CD.md`, `docs/SECURITY.md` | **DONE** — `d7060cf` |
 | **REM-033** | P0 | **New HIGH advisory caught by the new audit gate before push:** zod `GHSA-mrhx-c7xc-m3w5` (CVE-2023-54404, memory-exhaustion DoS; all zod 3.x affected) → upgrade zod 3.23 → 4.6.7 (zero code changes; typecheck/tests/build green on v4) | `package.json`, `package-lock.json` | **DONE — this batch** |
-| **REM-034** | P1 | Replace raw `npm audit --audit-level=high` (cannot express accepted risk; failed 25/25 days) with `scripts/audit-gate.mjs` — gates on unaccepted high/critical only, tolerating entries documented in tracked `/.trivyignore` (shared with Trivy, so both security gates agree); wire into `daily-security.yml` | `scripts/audit-gate.mjs`, `.trivyignore`, `.github/workflows/daily-security.yml` | **DONE — this batch** (verified: PASS locally with only postcss accepted) |
+| **REM-035** | P0 | **First live gated Trivy run failed while `npm audit` passed — two discoveries.** (a) The accepted-risk list was scanner-specific: Trivy reports **CVE** ids, the list carried **GHSA** ids, and they do not map 1:1, so the accepted postcss GHSAs matched none of the CVEs Trivy raised (SEC-015). (b) More importantly, the accepted-risk *premise* was wrong: the postcss HIGH is fixable **within major 8** — `next@15.5.28` merely exact-pins a nested `postcss@8.4.31` alongside an already-patched root `8.5.31`. Added `overrides: { postcss: "^8.5.31" }`, collapsing the vulnerable copy into the patched one → **3 findings, 0 critical, 0 high, 0 accepted**; `.trivyignore` emptied of advisory ids | `package.json`, `package-lock.json`, `.trivyignore` | **DONE — this batch** (typecheck/lint/test/build/gate all re-verified green) |
+| **REM-034** | P1 | Replace raw `npm audit --audit-level=high` (cannot express accepted risk; failed 25/25 days) with `scripts/audit-gate.mjs` — gates on unaccepted high/critical only, tolerating entries documented in tracked `/.trivyignore` (shared with Trivy, so both security gates agree); wire into `daily-security.yml` | `scripts/audit-gate.mjs`, `.trivyignore`, `.github/workflows/daily-security.yml` | **DONE — this batch** (verified: PASS locally) |
 | **REM-031** | P2 | Refresh all audit deliverables with post-remediation status; write FINAL-REMEDIATION-REPORT; correct `docs/THREAT-MODEL.md` aspirational claims | `docs/audits/*`, `docs/THREAT-MODEL.md` | **DONE — this entry** |
 
 ---
@@ -86,8 +87,9 @@ npm run build       → exit 0, 23 routes
 dev-server smoke    → login 200; /api/customers/CUST-001 200; /api/cases/CASE-2026-001 200;
                       all 8 pages 200; 0 sync-dynamic-apis / deprecation errors in log
 npm audit (via scripts/audit-gate.mjs)
-              → PASS: 5 findings (2 critical → 0); only documented postcss/tailwind
-                build-time residuals accepted (/.trivyignore); zod HIGH
-                (GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404) caught by the gate
-                pre-push and fixed (zod 3 → 4.6.7)
+              → PASS: 3 findings (2 critical -> 0, high -> 0); zero accepted.
+                zod HIGH (GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404) caught pre-push
+                and fixed (zod 3 -> 4.6.7); postcss HIGH eliminated by an npm
+                overrides entry (next's nested 8.4.31 -> patched 8.5.31).
+                Remainder = 3 moderates (tailwind 3 chain), below gate threshold
 ```

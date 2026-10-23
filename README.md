@@ -544,8 +544,8 @@ Verified during the 2026-10 inherited-state audit (details in
    failed 25/25 days on open CVEs. All three are now fixed (retargeted
    triggers, gating scans with a documented accepted-risk list) — the first
    push after remediation must be watched to confirm them green.
-6. **Known residual npm audit findings** (5, documented in
-   `docs/audits/SECURITY-AUDIT.md`): `postcss` bundled inside `next` and the
+6. **Known residual npm audit findings** (3, all **moderate**, documented in
+   `docs/audits/SECURITY-AUDIT.md` §4): the `tailwindcss` 3.x chain
    `tailwindcss@3` build-time chain. Both are build-time CSS tooling over
    developer-authored input; upgrading would require breaking majors
    (`next@16`, `tailwindcss@4`).
