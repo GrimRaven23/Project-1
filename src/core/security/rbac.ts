@@ -8,6 +8,7 @@ import { UserRole, TelecomDomain } from "../domain/types";
 export type Permission =
   // Customers & Sites
   | "customers:view"
+  | "customers:view_all" // portfolio-wide visibility (managers, presales, ops, audit)
   | "customers:create"
   | "customers:update"
   | "customers:delete"
@@ -53,7 +54,7 @@ export type Permission =
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   SUPER_ADMIN: [
-    "customers:view", "customers:create", "customers:update", "customers:delete",
+    "customers:view", "customers:view_all", "customers:create", "customers:update", "customers:delete",
     "cases:view_assigned", "cases:view_all", "cases:create", "cases:update", "cases:transition_state",
     "questionnaire:view", "questionnaire:edit", "questionnaire:submit",
     "qualification:run", "qualification:view", "qualification:manage_rules",
@@ -67,7 +68,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 
   PLATFORM_ADMIN: [
-    "customers:view", "customers:create", "customers:update",
+    "customers:view", "customers:view_all", "customers:create", "customers:update",
     "cases:view_assigned", "cases:view_all", "cases:create", "cases:update", "cases:transition_state",
     "questionnaire:view", "questionnaire:edit", "questionnaire:submit",
     "qualification:run", "qualification:view", "qualification:manage_rules",
@@ -92,7 +93,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 
   COMMERCIAL_MANAGER: [
-    "customers:view", "customers:create", "customers:update",
+    "customers:view", "customers:view_all", "customers:create", "customers:update",
     "cases:view_assigned", "cases:view_all", "cases:create", "cases:update", "cases:transition_state",
     "questionnaire:view", "questionnaire:edit", "questionnaire:submit",
     "qualification:run", "qualification:view",
@@ -105,7 +106,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 
   PRESALES_ENGINEER: [
-    "customers:view",
+    "customers:view", "customers:view_all",
     "cases:view_assigned", "cases:view_all", "cases:update", "cases:transition_state",
     "questionnaire:view", "questionnaire:edit",
     "qualification:run", "qualification:view",
@@ -154,7 +155,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 
   OPERATIONS_PROVISIONING: [
-    "customers:view",
+    "customers:view", "customers:view_all",
     "cases:view_assigned", "cases:view_all",
     "questionnaire:view",
     "qualification:view",
@@ -165,7 +166,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 
   AUDITOR_COMPLIANCE: [
-    "customers:view",
+    "customers:view", "customers:view_all",
     "cases:view_all",
     "questionnaire:view",
     "qualification:view",
